@@ -186,7 +186,7 @@ func (l *Listener) switcher() {
 			case gaio.OpWrite:
 				// write to target complete
 				if res.Error != nil {
-					l.logger.Println("gaio write error: %+v", res)
+					l.logger.Printf("gaio write error: %+v", res)
 					l.cleanClient(res.Conn.RemoteAddr())
 					continue
 				}
