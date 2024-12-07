@@ -63,6 +63,14 @@ type (
 	}
 )
 
+// ListenWithOptions creates a new listener with options
+// laddr: the listening address
+// target: the next hop address
+// sockbuf: the socket buffer size
+// timeout: the session timeout
+// crypterIn: the crypter for incoming packets
+// crypterOut: the crypter for outgoing packets
+// logger: the logger
 func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Duration, crypterIn BlockCrypt, crypterOut BlockCrypt, logger *log.Logger) (*Listener, error) {
 	udpaddr, err := net.ResolveUDPAddr("udp", laddr)
 	if err != nil {
@@ -75,12 +83,12 @@ func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Du
 
 	err = conn.SetReadBuffer(sockbuf)
 	if err != nil {
-		logger.Println("SetReadBuffer error:", err)
+		return nil, errors.WithStack(err)
 	}
 
 	err = conn.SetWriteBuffer(sockbuf)
 	if err != nil {
-		logger.Println("SetWriteBuffer error:", err)
+		return nil, errors.WithStack(err)
 	}
 
 	// initiate backend switcher
@@ -172,8 +180,6 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 
 // packet switcher from clients to targets
 func (l *Listener) switcher() {
-	// use listener connection as the context to identify the connection
-
 	for {
 		results, err := l.watcher.WaitIO()
 		if err != nil {
@@ -232,6 +238,7 @@ func (l *Listener) cleanClient(raddr net.Addr) {
 	l.incomingConnectionsLock.Unlock()
 }
 
+// Close the listener
 func (l *Listener) Close() error {
 	l.dieOnce.Do(func() {
 		close(l.die)
