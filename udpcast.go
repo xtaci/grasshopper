@@ -145,14 +145,14 @@ func (l *Listener) switcher() {
 			case gaio.OpWrite:
 				// write to target complete
 				if res.Error != nil {
-					log.Println(res.Error)
+					log.Println("gaio write error: %+v", res)
 					l.cleanClient(res.Conn.RemoteAddr())
 					continue
 				}
 
 			case gaio.OpRead:
 				if res.Error != nil { // any error discontinues the connection
-					log.Println(res.Error)
+					log.Printf("gaio read error: %+v", res)
 					l.cleanClient(res.Conn.RemoteAddr())
 					continue
 				}
