@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"encoding/json"
@@ -9,11 +9,12 @@ import (
 // Config for server
 type Config struct {
 	Listen  string        `json:"listen"`
-	Target  string        `json:"target"`
-	Key     string        `json:"key"`
-	Crypt   string        `json:"crypt"`
-	Mode    string        `json:"mode"`
 	SockBuf int           `json:"sockbuf"`
+	NextHop string        `json:"nexthop"`
+	KI      string        `json:"ki"`
+	KO      string        `json:"ko"`
+	CI      string        `json:"ci"`
+	CO      string        `json:"co"`
 	Timeout time.Duration `json:"timeout"`
 }
 

@@ -1,4 +1,26 @@
-package udpcast
+// The MIT License (MIT)
+//
+// Copyright (c) 2024 xtaci
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+package grasshopper
 
 import (
 	"crypto/rand"
@@ -16,26 +38,24 @@ const (
 	// 4-bytes extra UDP nonce for each packet
 	nonceSize = 4
 
-	// overall crypto header size
-	cryptHeaderSize = nonceSize
-
 	// maximum packet size
-	mtuLimit = 1500
+	mtuLimit = 1450
 )
 
 type (
 	// Listener defines a server which will be waiting to accept incoming connections
 	Listener struct {
-		logger  *log.Logger   // logger
-		block   BlockCrypt    // block encryption
-		conn    *net.UDPConn  // the underlying packet connection
-		timeout time.Duration // session timeout
-		sockbuf int           // socket buffer size
+		logger     *log.Logger   // logger
+		crypterIn  BlockCrypt    // crypter for incoming packets
+		crypterOut BlockCrypt    // crypter for outgoing packets
+		conn       *net.UDPConn  // the underlying packet connection
+		timeout    time.Duration // session timeout
+		sockbuf    int           // socket buffer size
 
 		// connection pairing
-		target                  string              // target address
+		out                     string              // the target address
 		watcher                 *gaio.Watcher       // the watcher
-		incomingConnections     map[string]net.Conn // client address -> {connection to target}
+		incomingConnections     map[string]net.Conn // client address -> {connection to next hop}
 		incomingConnectionsLock sync.RWMutex
 
 		die     chan struct{} // notify the listener has closed
@@ -43,7 +63,7 @@ type (
 	}
 )
 
-func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Duration, block BlockCrypt, logger *log.Logger) (*Listener, error) {
+func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Duration, crypterIn BlockCrypt, crypterOut BlockCrypt, logger *log.Logger) (*Listener, error) {
 	udpaddr, err := net.ResolveUDPAddr("udp", laddr)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -73,9 +93,10 @@ func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Du
 	l.logger = logger
 	l.incomingConnections = make(map[string]net.Conn)
 	l.conn = conn
-	l.target = target
+	l.out = target
 	l.die = make(chan struct{})
-	l.block = block
+	l.crypterIn = crypterIn
+	l.crypterOut = crypterOut
 	l.watcher = watcher
 	l.timeout = timeout
 	return l, nil
@@ -88,7 +109,7 @@ func (l *Listener) Start() {
 	for {
 		buf := make([]byte, mtuLimit)
 		if n, from, err := l.conn.ReadFrom(buf); err == nil {
-			l.packetInput(buf[:n], from)
+			l.packetIn(buf[:n], from)
 		} else {
 			l.logger.Fatal("Start:", err)
 			return
@@ -96,37 +117,52 @@ func (l *Listener) Start() {
 	}
 }
 
-func (l *Listener) packetInput(data []byte, raddr net.Addr) {
-	decrypted := false
-	if l.block != nil && len(data) >= cryptHeaderSize {
-		l.block.Decrypt(data, data)
-		decrypted = true
-	} else if l.block == nil {
-		decrypted = true
+// packetIn handles incoming packets
+func (l *Listener) packetIn(data []byte, raddr net.Addr) {
+	// decrypt incoming packet if crypterIn is set
+	packetOk := false
+	if l.crypterIn != nil && len(data) >= nonceSize {
+		l.crypterIn.Decrypt(data, data)
+		data = data[nonceSize:]
+		packetOk = true
+	} else if l.crypterIn == nil {
+		packetOk = true
 	}
 
-	if decrypted {
+	if packetOk {
 		l.incomingConnectionsLock.RLock()
 		conn, ok := l.incomingConnections[raddr.String()]
 		l.incomingConnectionsLock.RUnlock()
+
+		// encrypt or re-encrypt the packet if crypterOut is set(with new nonce)
+		if l.crypterOut != nil {
+			dataOut := make([]byte, len(data)+nonceSize)
+			copy(dataOut[nonceSize:], data)
+			_, _ = io.ReadFull(rand.Reader, dataOut[:nonceSize])
+			l.crypterOut.Encrypt(dataOut, dataOut)
+			data = dataOut
+		}
 
 		if ok { // existing connection
 			l.watcher.WriteTimeout(nil, conn, data, time.Now().Add(l.timeout))
 		} else { // new connection
 			// dial target
-			conn, err := net.Dial("udp", l.target)
+			conn, err := net.Dial("udp", l.out)
 			if err != nil {
 				l.logger.Println("dial target error:", err)
 				return
 			}
 
-			// initate full-duplex from and to target
+			// the context is the address of incoming packet
+			// register the address
 			ctx := raddr
 			l.incomingConnectionsLock.Lock()
 			l.incomingConnections[raddr.String()] = conn
 			l.incomingConnectionsLock.Unlock()
+
+			// watch the connection
 			l.watcher.ReadTimeout(ctx, conn, make([]byte, mtuLimit), time.Now().Add(l.timeout))
-			l.watcher.WriteTimeout(nil, conn, data, time.Now().Add(l.timeout))
+			l.watcher.WriteTimeout(nil, conn, data, time.Now().Add(l.timeout)) // write needs not to specify the context(where the packet from)
 		}
 	}
 }
@@ -159,21 +195,28 @@ func (l *Listener) switcher() {
 					continue
 				}
 
-				var dataFromTarget []byte
-				if l.block == nil {
-					dataFromTarget = make([]byte, res.Size)
-					copy(dataFromTarget, res.Buffer)
-				} else { // encrypt the packet
-					dataFromTarget = make([]byte, res.Size+nonceSize)
-					copy(dataFromTarget[nonceSize:], res.Buffer)
-					io.ReadFull(rand.Reader, dataFromTarget[:nonceSize])
-					l.block.Encrypt(dataFromTarget, dataFromTarget)
+				// received data from the next hop
+				dataFromTarget := res.Buffer[:res.Size]
+
+				// decrypt data from target if crypterOut is set
+				if l.crypterOut != nil {
+					l.crypterOut.Decrypt(dataFromTarget, dataFromTarget)
+					dataFromTarget = dataFromTarget[nonceSize:]
+				}
+
+				// re-encrypt data to client if crypterIn is set
+				if l.crypterIn != nil {
+					data := make([]byte, len(dataFromTarget)+nonceSize)
+					copy(data[nonceSize:], dataFromTarget)
+					_, _ = io.ReadFull(rand.Reader, data[:nonceSize])
+					l.crypterIn.Encrypt(data, data)
+					dataFromTarget = data
 				}
 
 				// forward data to client
 				l.conn.WriteTo(dataFromTarget, res.Context.(net.Addr))
 
-				// initiate consecutive reading from the target
+				// fire another read-request to the connection
 				l.watcher.ReadTimeout(res.Context, res.Conn, make([]byte, mtuLimit), time.Now().Add(l.timeout))
 			}
 		}
