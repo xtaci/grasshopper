@@ -26,6 +26,7 @@ const (
 type (
 	// Listener defines a server which will be waiting to accept incoming connections
 	Listener struct {
+		logger  *log.Logger   // logger
 		block   BlockCrypt    // block encryption
 		conn    *net.UDPConn  // the underlying packet connection
 		timeout time.Duration // session timeout
@@ -42,7 +43,7 @@ type (
 	}
 )
 
-func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Duration, block BlockCrypt) (*Listener, error) {
+func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Duration, block BlockCrypt, logger *log.Logger) (*Listener, error) {
 	udpaddr, err := net.ResolveUDPAddr("udp", laddr)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -54,12 +55,12 @@ func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Du
 
 	err = conn.SetReadBuffer(sockbuf)
 	if err != nil {
-		log.Println("SetReadBuffer error:", err)
+		logger.Println("SetReadBuffer error:", err)
 	}
 
 	err = conn.SetWriteBuffer(sockbuf)
 	if err != nil {
-		log.Println("SetWriteBuffer error:", err)
+		logger.Println("SetWriteBuffer error:", err)
 	}
 
 	// initiate backend switcher
@@ -69,6 +70,7 @@ func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Du
 	}
 
 	l := new(Listener)
+	l.logger = logger
 	l.incomingConnections = make(map[string]net.Conn)
 	l.conn = conn
 	l.target = target
@@ -88,7 +90,7 @@ func (l *Listener) Start() {
 		if n, from, err := l.conn.ReadFrom(buf); err == nil {
 			l.packetInput(buf[:n], from)
 		} else {
-			log.Fatal("Start:", err)
+			l.logger.Fatal("Start:", err)
 			return
 		}
 	}
@@ -114,7 +116,7 @@ func (l *Listener) packetInput(data []byte, raddr net.Addr) {
 			// dial target
 			conn, err := net.Dial("udp", l.target)
 			if err != nil {
-				log.Println("dial target error:", err)
+				l.logger.Println("dial target error:", err)
 				return
 			}
 
@@ -136,7 +138,7 @@ func (l *Listener) switcher() {
 	for {
 		results, err := l.watcher.WaitIO()
 		if err != nil {
-			log.Println("wait io error:", err)
+			l.logger.Println("wait io error:", err)
 			return
 		}
 
@@ -145,14 +147,14 @@ func (l *Listener) switcher() {
 			case gaio.OpWrite:
 				// write to target complete
 				if res.Error != nil {
-					log.Println("gaio write error: %+v", res)
+					l.logger.Println("gaio write error: %+v", res)
 					l.cleanClient(res.Conn.RemoteAddr())
 					continue
 				}
 
 			case gaio.OpRead:
 				if res.Error != nil { // any error discontinues the connection
-					log.Printf("gaio read error: %+v", res)
+					l.logger.Printf("gaio read error: %+v", res)
 					l.cleanClient(res.Conn.RemoteAddr())
 					continue
 				}

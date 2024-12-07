@@ -128,7 +128,7 @@ func run(c *cli.Context) error {
 	}
 	if c.Command.Name == "server" {
 		log.Println("target:", config.Target)
-		listener, err := udpcast.ListenWithOptions(config.Listen, config.Target, config.SockBuf, config.Timeout, block)
+		listener, err := udpcast.ListenWithOptions(config.Listen, config.Target, config.SockBuf, config.Timeout, block, log.Default())
 		if err != nil {
 			log.Fatal(err)
 		}
