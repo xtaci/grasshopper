@@ -1,5 +1,10 @@
 # grasshopper
 
+## Install
+```
+go install  github.com/xtaci/grasshopper/cmd/grasshopper@latest     
+```
+
 ## Example Usage
 
 Step 1: start an UDP echo server with ncat with port 5000
