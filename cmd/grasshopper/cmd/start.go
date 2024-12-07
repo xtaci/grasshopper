@@ -31,15 +31,17 @@ var startCmd = &cobra.Command{
 		log.Println("incoming crypto:", config.CI)
 		log.Println("outgoing crypto:", config.CO)
 
-		log.Println("initiating key derivation K1")
+		log.Println("initiating key derivation KI")
 		passIn := pbkdf2.Key([]byte(config.KI), []byte(SALT), 4096, 32, sha1.New)
-		log.Println("initiating key derivation K2")
+		log.Println("initiating key derivation KO")
 		passOut := pbkdf2.Key([]byte(config.KO), []byte(SALT), 4096, 32, sha1.New)
 		log.Println("key derivation done")
 
 		// init crypter
 		crypterIn := newCrypt(passIn, config.CI)
 		crypterOut := newCrypt(passOut, config.CO)
+
+		log.Println(crypterIn, crypterOut)
 
 		// init listener
 		listener, err := grasshopper.ListenWithOptions(config.Listen, config.NextHop, config.SockBuf, config.Timeout, crypterIn, crypterOut, log.Default())
@@ -60,6 +62,8 @@ func newCrypt(pass []byte, method string) grasshopper.BlockCrypt {
 		block, _ = grasshopper.NewSM4BlockCrypt(pass[:16])
 	case "tea":
 		block, _ = grasshopper.NewTEABlockCrypt(pass[:16])
+	case "aes":
+		block, _ = grasshopper.NewAESBlockCrypt(pass)
 	case "aes-128":
 		block, _ = grasshopper.NewAESBlockCrypt(pass[:16])
 	case "aes-192":
