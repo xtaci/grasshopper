@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	// 8-bytes UDP nonce for each packet
-	nonceSize = 8
+	// 4-bytes extra UDP nonce for each packet
+	nonceSize = 4
 
 	// overall crypto header size
 	cryptHeaderSize = nonceSize

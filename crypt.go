@@ -45,8 +45,7 @@ var (
 	// https://en.wikipedia.org/wiki/Initialization_vector
 	// actually initial vector is not used in this package, we prepend a random nonce to each outgoing packets.
 	// though IV is fixed, the first 8 bytes of the encrypted data is always random.
-	initialVector = []byte{167, 115, 79, 156, 18, 172, 27, 1, 164, 21, 242, 193, 252, 120, 230, 107}
-	saltxor       = `sH3CIVoF#rWLtJo6`
+	initialVector = []byte{157, 163, 65, 176, 44, 219, 57, 121, 143, 80, 0, 239, 152, 228, 240, 254}
 )
 
 // BlockCrypt defines encryption/decryption methods for a given byte slice.
@@ -241,16 +240,6 @@ func NewXTEABlockCrypt(key []byte) (BlockCrypt, error) {
 
 func (c *xteaBlockCrypt) Encrypt(dst, src []byte) { encrypt(c.block, dst, src, c.encbuf[:]) }
 func (c *xteaBlockCrypt) Decrypt(dst, src []byte) { decrypt(c.block, dst, src, c.decbuf[:]) }
-
-type noneBlockCrypt struct{}
-
-// NewNoneBlockCrypt does nothing but copying
-func NewNoneBlockCrypt(key []byte) (BlockCrypt, error) {
-	return new(noneBlockCrypt), nil
-}
-
-func (c *noneBlockCrypt) Encrypt(dst, src []byte) { copy(dst, src) }
-func (c *noneBlockCrypt) Decrypt(dst, src []byte) { copy(dst, src) }
 
 // packet encryption with local CFB mode
 func encrypt(block cipher.Block, dst, src, buf []byte) {
