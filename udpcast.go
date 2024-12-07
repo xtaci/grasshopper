@@ -1,6 +1,8 @@
 package udpcast
 
 import (
+	"crypto/rand"
+	"io"
 	"log"
 	"net"
 	"sync"
@@ -27,6 +29,7 @@ type (
 		block   BlockCrypt    // block encryption
 		conn    *net.UDPConn  // the underlying packet connection
 		timeout time.Duration // session timeout
+		sockbuf int           // socket buffer size
 
 		// connection pairing
 		target                  string              // target address
@@ -39,7 +42,7 @@ type (
 	}
 )
 
-func ListenWithOptions(laddr string, target string, timeout time.Duration, block BlockCrypt) (*Listener, error) {
+func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Duration, block BlockCrypt) (*Listener, error) {
 	udpaddr, err := net.ResolveUDPAddr("udp", laddr)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -49,35 +52,43 @@ func ListenWithOptions(laddr string, target string, timeout time.Duration, block
 		return nil, errors.WithStack(err)
 	}
 
-	return serveConn(block, conn, timeout)
-}
+	err = conn.SetReadBuffer(sockbuf)
+	if err != nil {
+		log.Println("SetReadBuffer error:", err)
+	}
 
-func serveConn(block BlockCrypt, conn *net.UDPConn, timeout time.Duration) (*Listener, error) {
-	// backend switcher
+	err = conn.SetWriteBuffer(sockbuf)
+	if err != nil {
+		log.Println("SetWriteBuffer error:", err)
+	}
+
+	// initiate backend switcher
 	watcher, err := gaio.NewWatcher()
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	l := new(Listener)
+	l.incomingConnections = make(map[string]net.Conn)
 	l.conn = conn
+	l.target = target
 	l.die = make(chan struct{})
 	l.block = block
 	l.watcher = watcher
 	l.timeout = timeout
-	go l.switcher()
-	go l.porter()
 	return l, nil
 }
 
-// handling incoming UDP packets to the listener
-func (l *Listener) porter() {
+// Start the listener
+func (l *Listener) Start() {
+	go l.switcher()
+
 	for {
 		buf := make([]byte, mtuLimit)
 		if n, from, err := l.conn.ReadFrom(buf); err == nil {
 			l.packetInput(buf[:n], from)
 		} else {
-			log.Fatal(err)
+			log.Fatal("Start:", err)
 			return
 		}
 	}
@@ -108,10 +119,11 @@ func (l *Listener) packetInput(data []byte, raddr net.Addr) {
 			}
 
 			// initate full-duplex from and to target
+			ctx := raddr
 			l.incomingConnectionsLock.Lock()
 			l.incomingConnections[raddr.String()] = conn
 			l.incomingConnectionsLock.Unlock()
-			l.watcher.ReadTimeout(nil, conn, make([]byte, mtuLimit), time.Now().Add(l.timeout))
+			l.watcher.ReadTimeout(ctx, conn, make([]byte, mtuLimit), time.Now().Add(l.timeout))
 			l.watcher.WriteTimeout(nil, conn, data, time.Now().Add(l.timeout))
 		}
 	}
@@ -120,11 +132,9 @@ func (l *Listener) packetInput(data []byte, raddr net.Addr) {
 // packet switcher from clients to targets
 func (l *Listener) switcher() {
 	// use listener connection as the context to identify the connection
-	w := l.watcher
-	w.Read(nil, l.conn, make([]byte, mtuLimit)) // genesis read request
 
 	for {
-		results, err := w.WaitIO()
+		results, err := l.watcher.WaitIO()
 		if err != nil {
 			log.Println("wait io error:", err)
 			return
@@ -147,10 +157,22 @@ func (l *Listener) switcher() {
 					continue
 				}
 
-				// data read from target, forward to client
-				l.conn.WriteToUDP(res.Buffer, l.conn.RemoteAddr().(*net.UDPAddr))
-				// initiate continuous reading
-				l.watcher.ReadTimeout(nil, res.Conn, make([]byte, mtuLimit), time.Now().Add(l.timeout))
+				var dataFromTarget []byte
+				if l.block == nil {
+					dataFromTarget = make([]byte, res.Size)
+					copy(dataFromTarget, res.Buffer)
+				} else { // encrypt the packet
+					dataFromTarget = make([]byte, res.Size+nonceSize)
+					copy(dataFromTarget[nonceSize:], res.Buffer)
+					io.ReadFull(rand.Reader, dataFromTarget[:nonceSize])
+					l.block.Encrypt(dataFromTarget, dataFromTarget)
+				}
+
+				// forward data to client
+				l.conn.WriteTo(dataFromTarget, res.Context.(net.Addr))
+
+				// initiate consecutive reading from the target
+				l.watcher.ReadTimeout(res.Context, res.Conn, make([]byte, mtuLimit), time.Now().Add(l.timeout))
 			}
 		}
 	}
