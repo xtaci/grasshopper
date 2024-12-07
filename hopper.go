@@ -53,7 +53,7 @@ type (
 		sockbuf    int           // socket buffer size
 
 		// connection pairing
-		out                     string              // the target address
+		nextHop                 string              // the outgoing address
 		watcher                 *gaio.Watcher       // the watcher
 		incomingConnections     map[string]net.Conn // client address -> {connection to next hop}
 		incomingConnectionsLock sync.RWMutex
@@ -93,7 +93,7 @@ func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Du
 	l.logger = logger
 	l.incomingConnections = make(map[string]net.Conn)
 	l.conn = conn
-	l.out = target
+	l.nextHop = target
 	l.die = make(chan struct{})
 	l.crypterIn = crypterIn
 	l.crypterOut = crypterOut
@@ -147,11 +147,14 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 			l.watcher.WriteTimeout(nil, conn, data, time.Now().Add(l.timeout))
 		} else { // new connection
 			// dial target
-			conn, err := net.Dial("udp", l.out)
+			conn, err := net.Dial("udp", l.nextHop)
 			if err != nil {
 				l.logger.Println("dial target error:", err)
 				return
 			}
+
+			// log new connection
+			log.Printf("new connection from %s to %s", raddr.String(), l.nextHop)
 
 			// the context is the address of incoming packet
 			// register the address
