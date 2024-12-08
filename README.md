@@ -2,6 +2,15 @@
 The grasshopper will listen for incoming UDP packets and forward them to the configured destination.
 Optionally, the listener can be configured to apply cryptogrraphy on both the incoming and outgoing packets, with different keys and methods.
 
+## Architecture
+The grasshopper acts like a chained-relayer, for example
+
+```
+gh = grasshopper
+client --------------> relayer1(gh) --------------> relayer2(gh) -----------------> relayer3(gh) --------------------> destination.
+        plaintext                     encrypted                    re-encrypted                        decrypted
+```
+
 ## Install
 ```
 go install  github.com/xtaci/grasshopper/cmd/grasshopper@latest     
