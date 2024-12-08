@@ -60,8 +60,6 @@ var startCmd = &cobra.Command{
 		crypterIn := newCrypt(passIn, config.CI)
 		crypterOut := newCrypt(passOut, config.CO)
 
-		log.Println(crypterIn, crypterOut)
-
 		// init listener
 		listener, err := grasshopper.ListenWithOptions(config.Listen, config.NextHop, config.SockBuf, config.Timeout, crypterIn, crypterOut, log.Default())
 		if err != nil {
