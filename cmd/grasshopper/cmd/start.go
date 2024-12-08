@@ -25,6 +25,7 @@ package cmd
 import (
 	"crypto/sha1"
 	"log"
+	"slices"
 
 	"github.com/spf13/cobra"
 	"github.com/xtaci/grasshopper"
@@ -37,6 +38,8 @@ const (
 )
 
 var VERSION = "undefined"
+
+var allCryptoMethods = []string{"none", "sm4", "tea", "aes", "aes-128", "aes-192", "blowfish", "twofish", "cast5", "3des", "xtea", "salsa20"}
 
 // startCmd represents the start command
 var startCmd = &cobra.Command{
@@ -55,6 +58,14 @@ var startCmd = &cobra.Command{
 		log.Println("Initiating key derivation(OUT)")
 		passOut := pbkdf2.Key([]byte(config.KO), []byte(SALT), 4096, 32, sha1.New)
 		log.Println("Key derivation done")
+
+		if !slices.Contains(allCryptoMethods, config.CI) {
+			log.Fatal("Invalid crypto method:", config.CI)
+		}
+
+		if !slices.Contains(allCryptoMethods, config.CO) {
+			log.Fatal("Invalid crypto method:", config.CO)
+		}
 
 		// init crypter
 		crypterIn := newCrypt(passIn, config.CI)
