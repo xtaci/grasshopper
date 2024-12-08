@@ -1,6 +1,6 @@
 module github.com/xtaci/grasshopper
 
-go 1.23.3
+go 1.23
 
 require (
 	github.com/pkg/errors v0.9.1
