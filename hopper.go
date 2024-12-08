@@ -35,8 +35,8 @@ import (
 )
 
 const (
-	// 4-bytes extra UDP nonce for each packet
-	nonceSize = 4
+	// 8-bytes extra UDP nonce for each packet
+	nonceSize = 8
 
 	// maximum packet size
 	mtuLimit = 1450
