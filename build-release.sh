@@ -30,7 +30,7 @@ if hash upx 2>/dev/null; then
     UPX=true
 fi
 
-LDFLAGS="-X main.VERSION=$VERSION -s -w"
+LDFLAGS="-X 'github.com/xtaci/grasshopper/cmd/grasshopper/cmd.VERSION=$VERSION' -s -w"
 GCFLAGS=""
 
 # AMD64 
