@@ -604,7 +604,7 @@ func decrypt16(block cipher.Block, dst, src, buf []byte) {
 	}
 }
 
-// per bytes xors
+// per byte xors
 func xorBytes(dst, a, b []byte) int {
 	n := len(a)
 	if len(b) < n {

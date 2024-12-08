@@ -133,6 +133,7 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 		l.crypterIn.Decrypt(data, data)
 		data = data[nonceSize:]
 		packetOk = true
+		// fmt.Println(unsafe.Pointer(l), "decrypted listener in", string(data))
 	} else if l.crypterIn == nil {
 		packetOk = true
 	}
@@ -144,6 +145,7 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 			copy(dataOut[nonceSize:], data)
 			_, _ = io.ReadFull(rand.Reader, dataOut[:nonceSize])
 			l.crypterOut.Encrypt(dataOut, dataOut)
+			//fmt.Println(unsafe.Pointer(l), "encrypted listener out", string(dataOut))
 			data = dataOut
 		}
 
@@ -211,6 +213,7 @@ func (l *Listener) switcher() {
 				if l.crypterOut != nil {
 					l.crypterOut.Decrypt(dataFromProxy, dataFromProxy)
 					dataFromProxy = dataFromProxy[nonceSize:]
+					//fmt.Println(unsafe.Pointer(l), "proxy crypterOut", string(dataFromProxy))
 				}
 
 				// re-encrypt data if crypterIn is set.
@@ -220,6 +223,7 @@ func (l *Listener) switcher() {
 					_, _ = io.ReadFull(rand.Reader, data[:nonceSize])
 					l.crypterIn.Encrypt(data, data)
 					dataFromProxy = data
+					//fmt.Println(unsafe.Pointer(l), "proxy crypterIn", string(dataFromProxy))
 				}
 
 				// forward the data to client via the listener.
