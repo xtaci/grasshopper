@@ -193,7 +193,7 @@ func (l *Listener) switcher() {
 			case gaio.OpWrite:
 				// done writting to proxy connection.
 				if res.Error != nil {
-					l.logger.Printf("[switcher]write error: %#v", res)
+					l.logger.Printf("[switcher]write error: %v, %v, %v, %v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
 					l.removeClient(res.Conn.RemoteAddr())
 					continue
 				}
@@ -201,7 +201,7 @@ func (l *Listener) switcher() {
 			case gaio.OpRead:
 				// any read error from the proxy connection cleans the other side(client).
 				if res.Error != nil {
-					l.logger.Printf("[switcher]read error: %#v", res)
+					l.logger.Printf("[switcher]read error: %v, %v, %v, %v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
 					l.removeClient(res.Conn.RemoteAddr())
 					continue
 				}
