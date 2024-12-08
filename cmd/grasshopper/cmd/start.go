@@ -43,18 +43,18 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start a listener for UDP packet forwarding",
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Println("version:", VERSION)
-		log.Println("listening on:", config.Listen)
-		log.Println("next hop:", config.NextHop)
-		log.Println("socket buffer:", config.SockBuf)
-		log.Println("incoming crypto:", config.CI)
-		log.Println("outgoing crypto:", config.CO)
+		log.Println("Version:", VERSION)
+		log.Println("Listening on:", config.Listen)
+		log.Println("Next hop:", config.NextHop)
+		log.Println("Socket buffer:", config.SockBuf)
+		log.Println("Incoming crypto:", config.CI)
+		log.Println("Outgoing crypto:", config.CO)
 
-		log.Println("initiating key derivation KI")
+		log.Println("Initiating key derivation(IN)")
 		passIn := pbkdf2.Key([]byte(config.KI), []byte(SALT), 4096, 32, sha1.New)
-		log.Println("initiating key derivation KO")
+		log.Println("Initiating key derivation(OUT)")
 		passOut := pbkdf2.Key([]byte(config.KO), []byte(SALT), 4096, 32, sha1.New)
-		log.Println("key derivation done")
+		log.Println("Key derivation done")
 
 		// init crypter
 		crypterIn := newCrypt(passIn, config.CI)
