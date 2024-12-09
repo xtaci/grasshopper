@@ -33,12 +33,15 @@ import (
 )
 
 const (
-	// SALT is use for pbkdf2 key expansion
+	// SALT is used for PBKDF2 key derivation.
 	SALT = "GRASSHOPPER"
 )
 
-var VERSION = "undefined"
+// Version specifies the current version of the application.
+// Injected by the build system.
+var Version = "undefined"
 
+// allCryptoMethods lists all supported cryptographic methods.
 var allCryptoMethods = []string{"none", "sm4", "tea", "aes", "aes-128", "aes-192", "blowfish", "twofish", "cast5", "3des", "xtea", "salsa20"}
 
 // startCmd represents the start command
@@ -46,19 +49,21 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start a listener for UDP packet forwarding",
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Println("Version:", VERSION)
+		log.Println("Version:", Version)
 		log.Println("Listening on:", config.Listen)
 		log.Println("Next hop:", config.NextHop)
 		log.Println("Socket buffer:", config.SockBuf)
 		log.Println("Incoming crypto:", config.CI)
 		log.Println("Outgoing crypto:", config.CO)
 
+		// Derive cryptographic keys using PBKDF2.
 		log.Println("Initiating key derivation(IN)")
 		passIn := pbkdf2.Key([]byte(config.KI), []byte(SALT), 4096, 32, sha1.New)
 		log.Println("Initiating key derivation(OUT)")
 		passOut := pbkdf2.Key([]byte(config.KO), []byte(SALT), 4096, 32, sha1.New)
 		log.Println("Key derivation done")
 
+		// Validate cryptographic methods.
 		if !slices.Contains(allCryptoMethods, config.CI) {
 			log.Fatal("Invalid crypto method:", config.CI)
 		}
@@ -67,11 +72,11 @@ var startCmd = &cobra.Command{
 			log.Fatal("Invalid crypto method:", config.CO)
 		}
 
-		// init crypter
+		// Initialize cryptographic handlers.
 		crypterIn := newCrypt(passIn, config.CI)
 		crypterOut := newCrypt(passOut, config.CO)
 
-		// init listener
+		// Initialize and start the UDP listener.
 		listener, err := grasshopper.ListenWithOptions(config.Listen, config.NextHop, config.SockBuf, config.Timeout, crypterIn, crypterOut, log.Default())
 		if err != nil {
 			log.Fatal(err)
@@ -81,6 +86,12 @@ var startCmd = &cobra.Command{
 	},
 }
 
+// newCrypt creates a new cryptographic handler based on the provided method and key.
+// Parameters:
+// - pass: The cryptographic key.
+// - method: The cryptographic method to use.
+// Returns:
+// - A BlockCrypt instance implementing the selected cryptographic method.
 func newCrypt(pass []byte, method string) grasshopper.BlockCrypt {
 	var block grasshopper.BlockCrypt
 	switch method {

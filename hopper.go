@@ -159,7 +159,7 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 		if ok { // existing connection
 			l.watcher.WriteTimeout(nil, conn, data, time.Now().Add(l.timeout))
 		} else { // new connection
-			// dial target
+			// dial the next hop
 			conn, err := net.Dial("udp", l.nextHop)
 			if err != nil {
 				l.logger.Println("dial target error:", err)
