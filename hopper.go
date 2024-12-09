@@ -39,7 +39,7 @@ const (
 	nonceSize = 8
 
 	// maximum packet size
-	mtuLimit = 1450
+	mtuLimit = 1500
 )
 
 type (
