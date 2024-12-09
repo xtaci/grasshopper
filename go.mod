@@ -7,7 +7,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/templexxx/xorsimd v0.4.3
 	github.com/tjfoc/gmsm v1.4.1
-	github.com/xtaci/gaio v1.2.21
+	github.com/xtaci/gaio v1.2.22
 	golang.org/x/crypto v0.30.0
 )
 

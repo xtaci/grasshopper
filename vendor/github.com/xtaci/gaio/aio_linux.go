@@ -111,7 +111,7 @@ func (p *poller) wakeup() error {
 }
 
 func (p *poller) Wait(chSignal chan Signal) {
-	var pe pollerEvents
+	var eventSet pollerEvents
 	events := make([]syscall.EpollEvent, maxEvents)
 	sig := Signal{
 		done: make(chan struct{}, 1),
@@ -146,7 +146,6 @@ func (p *poller) Wait(chSignal chan Signal) {
 				return
 			}
 
-			// load from cache
 			// event processing
 			for i := 0; i < n; i++ {
 				ev := &events[i]
@@ -171,12 +170,12 @@ func (p *poller) Wait(chSignal chan Signal) {
 						e.ev |= EV_WRITE
 					}
 
-					pe = append(pe, e)
+					eventSet = append(eventSet, e)
 				}
 			}
 
 			// notify watcher
-			sig.events = pe
+			sig.events = eventSet
 
 			select {
 			case chSignal <- sig:
@@ -187,7 +186,7 @@ func (p *poller) Wait(chSignal chan Signal) {
 			// wait for the watcher to finish processing
 			select {
 			case <-sig.done:
-				pe = pe[:0]
+				eventSet = eventSet[:0:cap(eventSet)]
 			case <-p.die:
 				return
 			}

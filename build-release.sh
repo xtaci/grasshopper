@@ -34,13 +34,8 @@ LDFLAGS="-X 'github.com/xtaci/grasshopper/cmd/grasshopper/cmd.Version=$VERSION' 
 GCFLAGS=""
 
 # AMD64 
-OSES=(linux)
+OSES=(linux freebsd)
 for os in ${OSES[@]}; do
-    suffix=""
-    if [ "$os" == "windows" ]
-    then
-        suffix=".exe"
-    fi
     env GOOS=$os GOARCH=amd64 go build -mod=vendor -ldflags "$LDFLAGS" -gcflags "$GCFLAGS" -o grasshopper_${os}_amd64${suffix} github.com/xtaci/grasshopper/cmd/grasshopper
     if $UPX; then upx -9 grasshopper_${os}_amd64${suffix};fi
     tar -cf grasshopper-${os}-amd64-$VERSION.tar grasshopper_${os}_amd64${suffix}
