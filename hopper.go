@@ -167,7 +167,7 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 			// add the connection to the incoming connections
 			l.addClient(raddr, conn)
 			// log new connection
-			log.Printf("new connection from %s to %s", raddr.String(), l.nextHop)
+			l.logger.Printf("new connection from %s to %s", raddr.String(), l.nextHop)
 
 			// watch the connection
 			// the context is the address of incoming packet
