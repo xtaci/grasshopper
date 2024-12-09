@@ -35,43 +35,44 @@ import (
 )
 
 const (
-	// 8-bytes extra UDP nonce for each packet
+	// nonceSize defines the size of the additional nonce (8 bytes) added to each UDP packet.
 	nonceSize = 8
 
-	// maximum packet size
+	// mtuLimit specifies the maximum transmission unit (MTU) size for a packet.
 	mtuLimit = 1500
 )
 
 type (
-	// Listener defines a server which will be waiting to accept incoming UDP connections
+	// Listener represents a UDP server that listens for incoming connections and relays them to the next hop.
 	Listener struct {
 		logger     *log.Logger   // logger
 		crypterIn  BlockCrypt    // crypter for incoming packets
 		crypterOut BlockCrypt    // crypter for outgoing packets
 		conn       *net.UDPConn  // the socket to listen on
 		timeout    time.Duration // session timeout
-		sockbuf    int           // socket buffer size
+		sockbuf    int           // socket buffer size for the `conn`
 
 		// connection pairing
 		nextHop                 string              // the outgoing address
-		watcher                 *gaio.Watcher       // the watcher
+		watcher                 *gaio.Watcher       // I/O watcher for asynchronous operations.
 		incomingConnections     map[string]net.Conn // client address -> {connection to next hop}
 		incomingConnectionsLock sync.RWMutex
 
-		die     chan struct{} // notify the listener has closed
-		dieOnce sync.Once
+		die     chan struct{} // Channel to signal listener termination.
+		dieOnce sync.Once     // Ensures the close operation is executed only once.
 	}
 )
 
-// ListenWithOptions creates a new listener with options
-// laddr: the listening address
-// target: the next hop address
-// sockbuf: the socket buffer size
-// timeout: the session timeout
-// crypterIn: the crypter for incoming packets
-// crypterOut: the crypter for outgoing packets
-// logger: the logger
-func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Duration, crypterIn BlockCrypt, crypterOut BlockCrypt, logger *log.Logger) (*Listener, error) {
+// ListenWithOptions initializes a new Listener with the provided options.
+// Parameters:
+// - laddr: Address to listen on.
+// - nexthop: Address to forward packets to.
+// - sockbuf: Socket buffer size in bytes.
+// - timeout: Session timeout duration.
+// - crypterIn: Cryptographic handler for decrypting incoming packets.
+// - crypterOut: Cryptographic handler for encrypting outgoing packets.
+// - logger: Logger instance for logging.
+func ListenWithOptions(laddr string, nexthop string, sockbuf int, timeout time.Duration, crypterIn BlockCrypt, crypterOut BlockCrypt, logger *log.Logger) (*Listener, error) {
 	udpaddr, err := net.ResolveUDPAddr("udp", laddr)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -101,7 +102,7 @@ func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Du
 	l.logger = logger
 	l.incomingConnections = make(map[string]net.Conn)
 	l.conn = conn
-	l.nextHop = target
+	l.nextHop = nexthop
 	l.die = make(chan struct{})
 	l.crypterIn = crypterIn
 	l.crypterOut = crypterOut
@@ -110,7 +111,8 @@ func ListenWithOptions(laddr string, target string, sockbuf int, timeout time.Du
 	return l, nil
 }
 
-// Start the listener and wait until it's closed, it returns when the socket is closed.
+// Start begins the listener loop, handling incoming packets and forwarding them.
+// It blocks until the listener is closed or encounters an error.
 func (l *Listener) Start() {
 	go l.switcher()
 
@@ -125,7 +127,7 @@ func (l *Listener) Start() {
 	}
 }
 
-// packetIn handles incoming packets
+// packetIn processes incoming packets and forwards them to the next hop.
 func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 	// decrypt incoming packet if crypterIn is set
 	packetOk := false
@@ -178,8 +180,7 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 	}
 }
 
-// switcher handles the proxy connections to the next hop.
-// It acts like a proxy multiplexer.
+// switcher handles bidirectional communication between the client and the next hop.
 func (l *Listener) switcher() {
 	for {
 		results, err := l.watcher.WaitIO()
@@ -236,21 +237,21 @@ func (l *Listener) switcher() {
 	}
 }
 
-// addClient adds the client to the incoming connections map.
+// addClient registers a new client connection.
 func (l *Listener) addClient(raddr net.Addr, conn net.Conn) {
 	l.incomingConnectionsLock.Lock()
 	l.incomingConnections[raddr.String()] = conn
 	l.incomingConnectionsLock.Unlock()
 }
 
-// removeClient removes the client from the incoming connections map.
+// removeClient removes a client connection.
 func (l *Listener) removeClient(raddr net.Addr) {
 	l.incomingConnectionsLock.Lock()
 	delete(l.incomingConnections, raddr.String())
 	l.incomingConnectionsLock.Unlock()
 }
 
-// Close the listener
+// Close terminates the listener, releasing resources.
 func (l *Listener) Close() error {
 	l.dieOnce.Do(func() {
 		close(l.die)
