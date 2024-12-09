@@ -35,8 +35,8 @@ import (
 )
 
 const (
-	// nonceSize defines the size of the additional nonce (8 bytes) added to each UDP packet.
-	nonceSize = 8
+	// nonceSize defines the size of the additional nonce (16 bytes) added to each UDP packet.
+	nonceSize = 16
 
 	// mtuLimit specifies the maximum transmission unit (MTU) size for a packet.
 	mtuLimit = 1500
