@@ -25,6 +25,7 @@ package grasshopper
 import (
 	"crypto/sha1"
 	"log"
+	"math/rand"
 	"net"
 	"testing"
 	"time"
@@ -125,9 +126,19 @@ func TestHopperAES(t *testing.T) {
 	testEcho(t, clientConn)
 }
 
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func randStringBytesRmndr(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
+	}
+	return string(b)
+}
+
 func testEcho(t *testing.T, clientConn net.Conn) {
-	messages := []string{"Hello", "Test", "UDP", "Echo"}
-	for i, msg := range messages {
+	for i := 0; i < 100; i++ {
+		msg := randStringBytesRmndr(rand.Intn(mtuLimit - headerSize))
 		_, err := clientConn.Write([]byte(msg))
 		if err != nil {
 			t.Errorf("Failed to send message %d: %v", i, err)

@@ -24,6 +24,8 @@ package grasshopper
 
 import (
 	"crypto/rand"
+	"encoding/binary"
+	"hash/crc32"
 	"io"
 	"log"
 	"net"
@@ -36,7 +38,16 @@ import (
 
 const (
 	// nonceSize defines the size of the additional nonce (16 bytes) added to each UDP packet.
-	nonceSize = 16
+	nonceSize   = 12
+	nonceOffset = 0
+
+	// checksumSize defines the size of the checksum (4 bytes) added to each UDP packet.
+	checksumSize   = 4
+	checksumOffset = nonceSize
+
+	// headerSize defines the size of the header (nonce + checksum) added to each UDP packet.
+	// | nonce(12 bytes) | checksum(4 bytes) | data |
+	headerSize = nonceSize + checksumSize
 
 	// mtuLimit specifies the maximum transmission unit (MTU) size for a packet.
 	mtuLimit = 1500
@@ -131,11 +142,15 @@ func (l *Listener) Start() {
 func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 	// decrypt incoming packet if crypterIn is set
 	packetOk := false
-	if l.crypterIn != nil && len(data) >= nonceSize {
+	if l.crypterIn != nil && len(data) >= headerSize {
 		l.crypterIn.Decrypt(data, data)
-		data = data[nonceSize:]
+		checksum := crc32.ChecksumIEEE(data[headerSize:])
+		if checksum != binary.LittleEndian.Uint32(data[checksumOffset:]) {
+			l.logger.Println("packetIn checksum mismatch")
+			return
+		}
+		data = data[headerSize:]
 		packetOk = true
-		// fmt.Println(unsafe.Pointer(l), "decrypted listener in", string(data))
 	} else if l.crypterIn == nil {
 		packetOk = true
 	}
@@ -143,9 +158,14 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 	if packetOk {
 		// encrypt or re-encrypt the packet if crypterOut is set(with new nonce)
 		if l.crypterOut != nil {
-			dataOut := make([]byte, len(data)+nonceSize)
-			copy(dataOut[nonceSize:], data)
-			_, _ = io.ReadFull(rand.Reader, dataOut[:nonceSize])
+			dataOut := make([]byte, len(data)+headerSize)
+			copy(dataOut[headerSize:], data)
+			// fill the nonce(12 bytes)
+			_, _ = io.ReadFull(rand.Reader, dataOut[nonceOffset:nonceOffset+nonceSize])
+			// fill the checksum(4 bytes)
+			checksum := crc32.ChecksumIEEE(data)
+			binary.LittleEndian.PutUint32(dataOut[checksumOffset:], checksum)
+			// encrypt the packet
 			l.crypterOut.Encrypt(dataOut, dataOut)
 			//fmt.Println(unsafe.Pointer(l), "encrypted listener out", string(dataOut))
 			data = dataOut
@@ -213,18 +233,27 @@ func (l *Listener) switcher() {
 				// decrypt data from the proxy connection if crypterOut is set.
 				if l.crypterOut != nil {
 					l.crypterOut.Decrypt(dataFromProxy, dataFromProxy)
-					dataFromProxy = dataFromProxy[nonceSize:]
+					checksum := crc32.ChecksumIEEE(dataFromProxy[headerSize:])
+					if checksum != binary.LittleEndian.Uint32(dataFromProxy[checksumOffset:]) {
+						l.logger.Println("crypterOut checksum mismatch")
+						continue
+					}
+					dataFromProxy = dataFromProxy[headerSize:]
 					//fmt.Println(unsafe.Pointer(l), "proxy crypterOut", string(dataFromProxy))
 				}
 
 				// re-encrypt data if crypterIn is set.
 				if l.crypterIn != nil {
-					data := make([]byte, len(dataFromProxy)+nonceSize)
-					copy(data[nonceSize:], dataFromProxy)
-					_, _ = io.ReadFull(rand.Reader, data[:nonceSize])
+					data := make([]byte, len(dataFromProxy)+headerSize)
+					copy(data[headerSize:], dataFromProxy)
+					// fill the nonce(12 bytes)
+					_, _ = io.ReadFull(rand.Reader, data[nonceOffset:nonceOffset+nonceSize])
+					// fill the checksum(4 bytes)
+					checksum := crc32.ChecksumIEEE(dataFromProxy)
+					binary.LittleEndian.PutUint32(data[checksumOffset:], checksum)
+					// encrypt the packet
 					l.crypterIn.Encrypt(data, data)
 					dataFromProxy = data
-					//fmt.Println(unsafe.Pointer(l), "proxy crypterIn", string(dataFromProxy))
 				}
 
 				// forward the data to client via the listener.
