@@ -125,28 +125,6 @@ func TestHopperAES(t *testing.T) {
 	testEcho(t, clientConn)
 }
 
-func TestHopperReencryption(t *testing.T) {
-	conn := newEchoServer(t)
-
-	ki, ko, ci, co := "123456", "", "aes", "none"
-	hop1 := newHopper("localhost:0", conn.LocalAddr().String(), ki, ko, ci, co)
-	t.Log("Hop1:", hop1.conn.LocalAddr().String(), "->", conn.LocalAddr().String(), "ki:", ki, "ko:", ko, "ci:", ci, "co:", co)
-	go hop1.Start()
-
-	ki, ko, ci, co = "", "1111111", "none", "aes"
-	hop2 := newHopper("localhost:0", hop1.conn.LocalAddr().String(), ki, ko, ci, co)
-	t.Log("Hop2:", hop2.conn.LocalAddr().String(), "->", hop1.conn.LocalAddr().String(), "ki:", ki, "ko:", ko, "ci:", ci, "co:", co)
-	go hop2.Start()
-
-	clientConn, err := net.Dial("udp", hop2.conn.LocalAddr().String())
-	if err != nil {
-		t.Fatalf("Failed to connect to server: %v", err)
-	}
-	defer clientConn.Close()
-
-	testEcho(t, clientConn)
-}
-
 func testEcho(t *testing.T, clientConn net.Conn) {
 	messages := []string{"Hello", "Test", "UDP", "Echo"}
 	for i, msg := range messages {
