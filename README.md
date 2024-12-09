@@ -1,4 +1,4 @@
-# grasshopper
+# 🦗 grasshopper
 The grasshopper will listen for incoming UDP packets and forward them to the configured destination.
 Optionally, the listener can be configured to apply cryptogrraphy on both the incoming and outgoing packets, with different keys and methods.
 
