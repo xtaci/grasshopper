@@ -16,6 +16,34 @@ client --------------> relayer1(gh) --------------> relayer2(gh) ---------------
 go install  github.com/xtaci/grasshopper/cmd/grasshopper@latest     
 ```
 
+## Parameters
+```
+The grasshopper will listen for incoming UDP packets and forward them to the configured destination.
+Optionally, the listener can be configured to apply cryptogrraphy on both the incoming and outgoing packets, with different keys and methods.
+
+Usage:
+  grasshopper [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  start       Start a listener for UDP packet forwarding
+
+Flags:
+      --ci string          The crytpgraphy method for incoming data, available: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "aes")
+      --co string          The crytpgraphy method for outgoing data, available: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "aes")
+  -h, --help               help for grasshopper
+      --ki string          The secret to encrypt and decrypt for the last hop(incoming) (default "it's a secret")
+      --ko string          The secret to encrypt and decrypt for the next hop(outgoing) (default "it's a secret")
+  -l, --listen string      listener address, eg: "IP:1234" (default ":1234")
+  -n, --nexthop string     the server to forward to (default "127.0.0.1:3000")
+      --sockbuf int        socket buffer for listener (default 1048576)
+      --timeout duration   set how long an UDP connection can live when in idle(in seconds) (default 10m0s)
+  -t, --toggle             Help message for toggle
+
+Use "grasshopper [command] --help" for more information about a command.
+```
+
 ## Example Usage
 
 Step 1: start an UDP echo server with ncat with port 5000
