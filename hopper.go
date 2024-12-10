@@ -178,6 +178,10 @@ func (l *Listener) clientIn(data []byte, raddr net.Addr) {
 	// onClientIn callback
 	if l.onClientIn != nil {
 		data = l.onClientIn(raddr, data)
+		// blackhole the packet if the callback returns nil
+		if data == nil {
+			return
+		}
 	}
 
 	// encrypt or re-encrypt the packet if crypterOut is set(with new nonce)
@@ -252,6 +256,10 @@ func (l *Listener) switcher() {
 				// onNextHopIn callback
 				if l.onNextHopIn != nil {
 					dataFromProxy = l.onNextHopIn(res.Conn.RemoteAddr(), res.Context.(net.Addr), dataFromProxy)
+					// blackhole the packet if the callback returns nil.
+					if dataFromProxy == nil {
+						continue
+					}
 				}
 
 				// re-encrypt data if crypterIn is set.
