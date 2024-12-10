@@ -221,7 +221,7 @@ func (l *Listener) clientIn(data []byte, raddr net.Addr) {
 		// the context is the address of incoming packet
 		ctx := raddr
 		l.watcher.ReadTimeout(ctx, conn, make([]byte, mtuLimit), time.Now().Add(l.timeout))
-		l.watcher.WriteTimeout(nil, conn, data, time.Now().Add(l.timeout)) // write needs not to specify the context(where the packet from)
+		l.watcher.WriteTimeout(ctx, conn, data, time.Now().Add(l.timeout)) // write needs not to specify the context(where the packet from)
 	}
 }
 
@@ -240,16 +240,16 @@ func (l *Listener) switcher() {
 			case gaio.OpWrite:
 				// done writting to proxy connection.
 				if res.Error != nil {
-					l.logger.Printf("[switcher]gaio.OpWrite: %v, %v, %v, %v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
-					l.removeClient(res.Conn.RemoteAddr())
+					l.logger.Printf("[switcher]gaio.OpWrite: err:%v, hop:%v, local:%v, client:%v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
+					l.removeClient(res.Context.(net.Addr))
 					continue RESULTS_LOOP
 				}
 
 			case gaio.OpRead:
 				// any read error from the proxy connection cleans the other side(client).
 				if res.Error != nil {
-					l.logger.Printf("[switcher]gaio.OpRead: %v, %v, %v, %v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
-					l.removeClient(res.Conn.RemoteAddr())
+					l.logger.Printf("[switcher]gaio.OpRead: err:%v, hop:%v, local:%v, client:%v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
+					l.removeClient(res.Context.(net.Addr))
 					continue RESULTS_LOOP
 				}
 
