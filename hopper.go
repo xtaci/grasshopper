@@ -56,14 +56,18 @@ const (
 )
 
 type (
+	// OnPacketReceived is a callback function that processes incoming packets if required.
+	OnPacketReceived func(from net.Addr, in []byte) (out []byte)
+
 	// Listener represents a UDP server that listens for incoming connections and relays them to the next hop.
 	Listener struct {
-		logger     *log.Logger   // logger
-		crypterIn  BlockCrypt    // crypter for incoming packets
-		crypterOut BlockCrypt    // crypter for outgoing packets
-		conn       *net.UDPConn  // the socket to listen on
-		timeout    time.Duration // session timeout
-		sockbuf    int           // socket buffer size for the `conn`
+		logger     *log.Logger      // logger
+		crypterIn  BlockCrypt       // crypter for incoming packets
+		crypterOut BlockCrypt       // crypter for outgoing packets
+		onPacketIn OnPacketReceived // callback for processing incoming packets
+		conn       *net.UDPConn     // the socket to listen on
+		timeout    time.Duration    // session timeout
+		sockbuf    int              // socket buffer size for the `conn`
 
 		// connection pairing
 		nextHops                []string            // the outgoing addresses, the switcher will forward packets to one of them randomly.
@@ -88,8 +92,16 @@ func init() {
 // - timeout: Session timeout duration.
 // - crypterIn: Cryptographic handler for decrypting incoming packets.
 // - crypterOut: Cryptographic handler for encrypting outgoing packets.
+// - pre: Prerouting function for processing incoming packets.
+// - post: Postrouting function before forwarding packets to the next hop.
 // - logger: Logger instance for logging.
-func ListenWithOptions(laddr string, nexthops []string, sockbuf int, timeout time.Duration, crypterIn BlockCrypt, crypterOut BlockCrypt, logger *log.Logger) (*Listener, error) {
+func ListenWithOptions(laddr string,
+	nexthops []string,
+	sockbuf int,
+	timeout time.Duration,
+	crypterIn BlockCrypt, crypterOut BlockCrypt,
+	onPacketIn OnPacketReceived,
+	logger *log.Logger) (*Listener, error) {
 	udpaddr, err := net.ResolveUDPAddr("udp", laddr)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -123,6 +135,7 @@ func ListenWithOptions(laddr string, nexthops []string, sockbuf int, timeout tim
 	l.die = make(chan struct{})
 	l.crypterIn = crypterIn
 	l.crypterOut = crypterOut
+	l.onPacketIn = onPacketIn
 	l.watcher = watcher
 	l.timeout = timeout
 	return l, nil
@@ -151,6 +164,11 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 	if err != nil {
 		l.logger.Println("decrypt error:", err)
 		return
+	}
+
+	// onPacketIn callback
+	if l.onPacketIn != nil {
+		data = l.onPacketIn(raddr, data)
 	}
 
 	// encrypt or re-encrypt the packet if crypterOut is set(with new nonce)

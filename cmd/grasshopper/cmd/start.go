@@ -77,7 +77,7 @@ var startCmd = &cobra.Command{
 		crypterOut := newCrypt(passOut, config.CO)
 
 		// Initialize and start the UDP listener.
-		listener, err := grasshopper.ListenWithOptions(config.Listen, config.NextHops, config.SockBuf, config.Timeout, crypterIn, crypterOut, log.Default())
+		listener, err := grasshopper.ListenWithOptions(config.Listen, config.NextHops, config.SockBuf, config.Timeout, crypterIn, crypterOut, nil, log.Default())
 		if err != nil {
 			log.Fatal(err)
 		}

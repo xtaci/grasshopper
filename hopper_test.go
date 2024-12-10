@@ -75,7 +75,7 @@ func newHopper(listen string, nexthop []string, ki string, ko string, ci string,
 	crypterOut := newCrypt(passOut, co)
 
 	// init listener
-	listener, err := ListenWithOptions(listen, nexthop, 1024*1024, 15*time.Second, crypterIn, crypterOut, log.Default())
+	listener, err := ListenWithOptions(listen, nexthop, 1024*1024, 15*time.Second, crypterIn, crypterOut, nil, log.Default())
 	if err != nil {
 		log.Fatal(err)
 	}
