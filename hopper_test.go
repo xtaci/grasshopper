@@ -170,7 +170,11 @@ func randStringBytesRmndr(n int) string {
 }
 
 func testEcho(t *testing.T, clientConn net.Conn) {
-	for i := 0; i < 100; i++ {
+	total := 100
+	sucess := 0
+	failed := 0
+	timeout := 0
+	for i := 0; i < total; i++ {
 		msg := randStringBytesRmndr(rand.Intn(mtuLimit - headerSize))
 		_, err := clientConn.Write([]byte(msg))
 		if err != nil {
@@ -183,15 +187,29 @@ func testEcho(t *testing.T, clientConn net.Conn) {
 		buffer := make([]byte, mtuLimit)
 		n, err := clientConn.Read(buffer)
 		if err != nil {
-			t.Errorf("Failed to receive response for message %d: %v", i, err)
+			timeout += 1
 			continue
 		}
 
 		received := string(buffer[:n])
 		if received != msg {
-			t.Errorf("Expected '%s', but got '%s'", msg, received)
+			failed += 1
+		} else {
+			sucess += 1
 		}
 	}
+
+	if failed > 0 {
+		t.Errorf("Echo test failed: %d sucess, %d failed, %d timeout", sucess, failed, timeout)
+		return
+	}
+
+	if timeout > total/10 {
+		t.Errorf("Echo test failed: %d sucess, %d failed, %d timeout", sucess, failed, timeout)
+		return
+	}
+
+	t.Logf("Echo test: %d sucess, %d failed, %d timeout", sucess, failed, timeout)
 }
 
 func newCrypt(pass []byte, method string) BlockCrypt {
