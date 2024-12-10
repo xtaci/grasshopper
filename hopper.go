@@ -234,6 +234,7 @@ func (l *Listener) switcher() {
 			return
 		}
 
+	RESULTS_LOOP:
 		for _, res := range results {
 			switch res.Operation {
 			case gaio.OpWrite:
@@ -241,7 +242,7 @@ func (l *Listener) switcher() {
 				if res.Error != nil {
 					l.logger.Printf("[switcher]gaio.OpWrite: %v, %v, %v, %v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
 					l.removeClient(res.Conn.RemoteAddr())
-					continue
+					continue RESULTS_LOOP
 				}
 
 			case gaio.OpRead:
@@ -249,7 +250,7 @@ func (l *Listener) switcher() {
 				if res.Error != nil {
 					l.logger.Printf("[switcher]gaio.OpRead: %v, %v, %v, %v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
 					l.removeClient(res.Conn.RemoteAddr())
-					continue
+					continue RESULTS_LOOP
 				}
 
 				// received data from the proxy connection.
@@ -259,7 +260,7 @@ func (l *Listener) switcher() {
 				dataFromProxy, err := decryptPacket(l.crypterOut, dataFromProxy)
 				if err != nil {
 					l.logger.Println("[switcher]decryptPacket:", err)
-					continue
+					continue RESULTS_LOOP
 				}
 
 				// onNextHopIn callback
@@ -267,7 +268,7 @@ func (l *Listener) switcher() {
 					dataFromProxy = l.onNextHopIn(res.Conn.RemoteAddr(), res.Context.(net.Addr), dataFromProxy)
 					// blackhole the packet if the callback returns nil.
 					if dataFromProxy == nil {
-						continue
+						continue RESULTS_LOOP
 					}
 				}
 
