@@ -80,7 +80,7 @@ type (
 		nextHops                []string            // the outgoing addresses, the switcher will forward packets to one of them randomly.
 		watcher                 *gaio.Watcher       // I/O watcher for asynchronous operations.
 		incomingConnections     map[string]net.Conn // client address -> {connection to next hop}
-		incomingConnectionsLock sync.RWMutex
+		incomingConnectionsLock sync.Mutex
 
 		die     chan struct{} // Channel to signal listener termination.
 		dieOnce sync.Once     // Ensures the close operation is executed only once.
@@ -188,9 +188,9 @@ func (l *Listener) clientIn(data []byte, raddr net.Addr) {
 	data = encryptPacket(l.crypterOut, data)
 
 	// load the connection from the incoming connections
-	l.incomingConnectionsLock.RLock()
+	l.incomingConnectionsLock.Lock()
 	conn, ok := l.incomingConnections[raddr.String()]
-	l.incomingConnectionsLock.RUnlock()
+	l.incomingConnectionsLock.Unlock()
 
 	if ok { // existing connection
 		l.watcher.WriteTimeout(nil, conn, data, time.Now().Add(l.timeout))
