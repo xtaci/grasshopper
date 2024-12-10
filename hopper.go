@@ -57,6 +57,7 @@ const (
 
 var (
 	errNoNextHop = errors.New("no next hop provided")
+	errChecksum  = errors.New("checksum mismatch")
 )
 
 type (
@@ -179,7 +180,7 @@ func (l *Listener) clientIn(data []byte, raddr net.Addr) {
 	// decrypt the packet if crypterIn is set
 	data, err := decryptPacket(l.crypterIn, data)
 	if err != nil {
-		l.logger.Println("decrypt error:", err)
+		l.logger.Println("[clientIn]decryptPacket:", err)
 		return
 	}
 
@@ -207,14 +208,14 @@ func (l *Listener) clientIn(data []byte, raddr net.Addr) {
 		nextHop := l.nextHops[mrand.Intn(len(l.nextHops))]
 		conn, err := net.Dial("udp", nextHop)
 		if err != nil {
-			l.logger.Println("dial target error:", err)
+			l.logger.Println("[clientIn]net.Dial:", err)
 			return
 		}
 
 		// add the connection to the incoming connections
 		l.addClient(raddr, conn)
 		// log new connection
-		l.logger.Printf("new connection from %s to %s", raddr.String(), nextHop)
+		l.logger.Printf("[clientIn]new connection: %v -> %v\n", raddr, conn.RemoteAddr())
 
 		// watch the connection
 		// the context is the address of incoming packet
@@ -229,7 +230,7 @@ func (l *Listener) switcher() {
 	for {
 		results, err := l.watcher.WaitIO()
 		if err != nil {
-			l.logger.Println("wait io error:", err)
+			l.logger.Println("[switcher]WaitIO():", err)
 			return
 		}
 
@@ -238,7 +239,7 @@ func (l *Listener) switcher() {
 			case gaio.OpWrite:
 				// done writting to proxy connection.
 				if res.Error != nil {
-					l.logger.Printf("[switcher]write error: %v, %v, %v, %v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
+					l.logger.Printf("[switcher]gaio.OpWrite: %v, %v, %v, %v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
 					l.removeClient(res.Conn.RemoteAddr())
 					continue
 				}
@@ -246,7 +247,7 @@ func (l *Listener) switcher() {
 			case gaio.OpRead:
 				// any read error from the proxy connection cleans the other side(client).
 				if res.Error != nil {
-					l.logger.Printf("[switcher]read error: %v, %v, %v, %v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
+					l.logger.Printf("[switcher]gaio.OpRead: %v, %v, %v, %v", res.Error, res.Conn.RemoteAddr(), res.Conn.LocalAddr(), res.Context)
 					l.removeClient(res.Conn.RemoteAddr())
 					continue
 				}
@@ -257,7 +258,7 @@ func (l *Listener) switcher() {
 				// decrypt data from the proxy connection if crypterOut is set.
 				dataFromProxy, err := decryptPacket(l.crypterOut, dataFromProxy)
 				if err != nil {
-					l.logger.Println("decrypt error:", err)
+					l.logger.Println("[switcher]decryptPacket:", err)
 					continue
 				}
 
@@ -314,7 +315,7 @@ func decryptPacket(crypter BlockCrypt, packet []byte) (data []byte, err error) {
 		crypter.Decrypt(packet, packet)
 		checksum := crc32.ChecksumIEEE(packet[headerSize:])
 		if checksum != binary.LittleEndian.Uint32(packet[checksumOffset:]) {
-			return nil, errors.New("checksum mismatch")
+			return nil, errChecksum
 		}
 		data = packet[headerSize:]
 	} else if crypter == nil {
