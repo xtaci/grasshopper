@@ -56,8 +56,11 @@ const (
 )
 
 type (
-	// OnPacketReceived is a callback function that processes incoming packets if required.
-	OnPacketReceived func(from net.Addr, in []byte) (out []byte)
+	// OnClientInCallback is a callback function that processes incoming packets from clients
+	OnClientInCallback func(client net.Addr, in []byte) (out []byte)
+
+	// OnNextHopInCallback is a callback function that processes incoming packets from the next hop.
+	OnNextHopInCallback func(hop net.Addr, client net.Addr, in []byte) (out []byte)
 
 	// Listener represents a UDP server that listens for incoming connections and relays them to the next hop.
 	Listener struct {
@@ -66,8 +69,8 @@ type (
 		crypterOut BlockCrypt  // crypter for outgoing packets
 
 		// callbacks for bidirectional communication
-		onClientIn  OnPacketReceived // callback on incoming packets from clients
-		onNextHopIn OnPacketReceived // callback on incoming packets from next hops
+		onClientIn  OnClientInCallback  // callback on incoming packets from clients
+		onNextHopIn OnNextHopInCallback // callback on incoming packets from next hops
 
 		conn    *net.UDPConn  // the socket to listen on
 		timeout time.Duration // session timeout
@@ -104,8 +107,8 @@ func ListenWithOptions(laddr string,
 	sockbuf int,
 	timeout time.Duration,
 	crypterIn BlockCrypt, crypterOut BlockCrypt,
-	onClientIn OnPacketReceived,
-	onNextHopIn OnPacketReceived,
+	onClientIn OnClientInCallback,
+	onNextHopIn OnNextHopInCallback,
 	logger *log.Logger) (*Listener, error) {
 	udpaddr, err := net.ResolveUDPAddr("udp", laddr)
 	if err != nil {
@@ -248,7 +251,7 @@ func (l *Listener) switcher() {
 
 				// onNextHopIn callback
 				if l.onNextHopIn != nil {
-					dataFromProxy = l.onNextHopIn(res.Context.(net.Addr), dataFromProxy)
+					dataFromProxy = l.onNextHopIn(res.Conn.RemoteAddr(), res.Context.(net.Addr), dataFromProxy)
 				}
 
 				// re-encrypt data if crypterIn is set.
