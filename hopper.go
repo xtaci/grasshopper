@@ -201,8 +201,9 @@ func (l *Listener) clientIn(data []byte, raddr net.Addr) {
 	conn, ok := l.incomingConnections[raddr.String()]
 	l.incomingConnectionsLock.Unlock()
 
+	ctx := raddr
 	if ok { // existing connection
-		l.watcher.WriteTimeout(nil, conn, data, time.Now().Add(l.timeout))
+		l.watcher.WriteTimeout(ctx, conn, data, time.Now().Add(l.timeout))
 	} else { // new connection
 		// pick random next hop
 		nextHop := l.nextHops[mrand.Intn(len(l.nextHops))]
@@ -219,7 +220,6 @@ func (l *Listener) clientIn(data []byte, raddr net.Addr) {
 
 		// watch the connection
 		// the context is the address of incoming packet
-		ctx := raddr
 		l.watcher.ReadTimeout(ctx, conn, make([]byte, mtuLimit), time.Now().Add(l.timeout))
 		l.watcher.WriteTimeout(ctx, conn, data, time.Now().Add(l.timeout))
 	}
