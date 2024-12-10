@@ -24,6 +24,7 @@ package grasshopper
 
 import (
 	"crypto/sha1"
+	"fmt"
 	"log"
 	"math/rand"
 	"net"
@@ -65,7 +66,7 @@ func newEchoServer(t *testing.T) *net.UDPConn {
 	return conn.(*net.UDPConn)
 }
 
-func newHopper(listen string, nexthop string, ki string, ko string, ci string, co string) *Listener {
+func newHopper(listen string, nexthop []string, ki string, ko string, ci string, co string) *Listener {
 	passIn := pbkdf2.Key([]byte(ki), []byte(SALT), 128, 32, sha1.New)
 	passOut := pbkdf2.Key([]byte(ko), []byte(SALT), 128, 32, sha1.New)
 
@@ -74,7 +75,7 @@ func newHopper(listen string, nexthop string, ki string, ko string, ci string, c
 	crypterOut := newCrypt(passOut, co)
 
 	// init listener
-	listener, err := ListenWithOptions(listen, nexthop, 65536, 15*time.Second, crypterIn, crypterOut, log.Default())
+	listener, err := ListenWithOptions(listen, nexthop, 1024*1024, 15*time.Second, crypterIn, crypterOut, log.Default())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -86,12 +87,12 @@ func TestHopperNone(t *testing.T) {
 	conn := newEchoServer(t)
 
 	ki, ko, ci, co := "", "", "none", "none"
-	hop1 := newHopper("localhost:0", conn.LocalAddr().String(), ki, ko, ci, co)
+	hop1 := newHopper("localhost:0", []string{conn.LocalAddr().String()}, ki, ko, ci, co)
 	t.Log("Hop1:", hop1.conn.LocalAddr().String(), "->", conn.LocalAddr().String(), "ki:", ki, "ko:", ko, "ci:", ci, "co:", co)
 	go hop1.Start()
 
 	ki, ko, ci, co = "", "", "none", "none"
-	hop2 := newHopper("localhost:0", hop1.conn.LocalAddr().String(), ki, ko, ci, co)
+	hop2 := newHopper("localhost:0", []string{hop1.conn.LocalAddr().String()}, ki, ko, ci, co)
 	t.Log("Hop2:", hop2.conn.LocalAddr().String(), "->", hop1.conn.LocalAddr().String(), "ki:", ki, "ko:", ko, "ci:", ci, "co:", co)
 	go hop2.Start()
 
@@ -108,12 +109,12 @@ func TestHopperAES(t *testing.T) {
 	conn := newEchoServer(t)
 
 	ki, ko, ci, co := "123456", "", "aes", "none"
-	hop1 := newHopper("localhost:0", conn.LocalAddr().String(), ki, ko, ci, co)
+	hop1 := newHopper("localhost:0", []string{conn.LocalAddr().String()}, ki, ko, ci, co)
 	t.Log("Hop1:", hop1.conn.LocalAddr().String(), "->", conn.LocalAddr().String(), "ki:", ki, "ko:", ko, "ci:", ci, "co:", co)
 	go hop1.Start()
 
 	ki, ko, ci, co = "", "123456", "none", "aes"
-	hop2 := newHopper("localhost:0", hop1.conn.LocalAddr().String(), ki, ko, ci, co)
+	hop2 := newHopper("localhost:0", []string{hop1.conn.LocalAddr().String()}, ki, ko, ci, co)
 	t.Log("Hop2:", hop2.conn.LocalAddr().String(), "->", hop1.conn.LocalAddr().String(), "ki:", ki, "ko:", ko, "ci:", ci, "co:", co)
 	go hop2.Start()
 
@@ -124,6 +125,38 @@ func TestHopperAES(t *testing.T) {
 	defer clientConn.Close()
 
 	testEcho(t, clientConn)
+}
+
+func TestMultiHoppers(t *testing.T) {
+	var nextHops []string
+	conn := newEchoServer(t)
+
+	// create 10 LEVEL-2 hops
+	ki, ko, ci, co := "123456", "", "aes", "none"
+	for i := 0; i < 10; i++ {
+		hop1 := newHopper("localhost:0", []string{conn.LocalAddr().String()}, ki, ko, ci, co)
+		t.Log("Hop1:", hop1.conn.LocalAddr().String(), "->", conn.LocalAddr().String(), "ki:", ki, "ko:", ko, "ci:", ci, "co:", co)
+		nextHops = append(nextHops, hop1.conn.LocalAddr().String())
+		go hop1.Start()
+	}
+	fmt.Println("NextHops:", nextHops)
+	<-time.After(2 * time.Second)
+
+	ki, ko, ci, co = "", "123456", "none", "aes"
+	hop2 := newHopper("localhost:0", nextHops, ki, ko, ci, co)
+	t.Log("Hop2:", hop2.conn.LocalAddr().String(), "->", nextHops, "ki:", ki, "ko:", ko, "ci:", ci, "co:", co)
+	go hop2.Start()
+
+	for i := 0; i < 10; i++ {
+		<-time.After(time.Millisecond * 100)
+		clientConn, err := net.Dial("udp", hop2.conn.LocalAddr().String())
+		if err != nil {
+			t.Fatalf("Failed to connect to server: %v", err)
+		}
+		defer clientConn.Close()
+
+		testEcho(t, clientConn)
+	}
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

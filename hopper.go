@@ -24,6 +24,8 @@ package grasshopper
 
 import (
 	"crypto/rand"
+	mrand "math/rand"
+
 	"encoding/binary"
 	"hash/crc32"
 	"io"
@@ -64,7 +66,7 @@ type (
 		sockbuf    int           // socket buffer size for the `conn`
 
 		// connection pairing
-		nextHop                 string              // the outgoing address
+		nextHops                []string            // the outgoing addresses, the switcher will forward packets to one of them randomly.
 		watcher                 *gaio.Watcher       // I/O watcher for asynchronous operations.
 		incomingConnections     map[string]net.Conn // client address -> {connection to next hop}
 		incomingConnectionsLock sync.RWMutex
@@ -77,13 +79,13 @@ type (
 // ListenWithOptions initializes a new Listener with the provided options.
 // Parameters:
 // - laddr: Address to listen on.
-// - nexthop: Address to forward packets to.
+// - nexthop: Addresses to forward packets to.
 // - sockbuf: Socket buffer size in bytes.
 // - timeout: Session timeout duration.
 // - crypterIn: Cryptographic handler for decrypting incoming packets.
 // - crypterOut: Cryptographic handler for encrypting outgoing packets.
 // - logger: Logger instance for logging.
-func ListenWithOptions(laddr string, nexthop string, sockbuf int, timeout time.Duration, crypterIn BlockCrypt, crypterOut BlockCrypt, logger *log.Logger) (*Listener, error) {
+func ListenWithOptions(laddr string, nexthops []string, sockbuf int, timeout time.Duration, crypterIn BlockCrypt, crypterOut BlockCrypt, logger *log.Logger) (*Listener, error) {
 	udpaddr, err := net.ResolveUDPAddr("udp", laddr)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -113,7 +115,7 @@ func ListenWithOptions(laddr string, nexthop string, sockbuf int, timeout time.D
 	l.logger = logger
 	l.incomingConnections = make(map[string]net.Conn)
 	l.conn = conn
-	l.nextHop = nexthop
+	l.nextHops = nexthops
 	l.die = make(chan struct{})
 	l.crypterIn = crypterIn
 	l.crypterOut = crypterOut
@@ -158,8 +160,9 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 	if ok { // existing connection
 		l.watcher.WriteTimeout(nil, conn, data, time.Now().Add(l.timeout))
 	} else { // new connection
-		// dial the next hop
-		conn, err := net.Dial("udp", l.nextHop)
+		// pick random next hop
+		nextHop := l.nextHops[mrand.Intn(len(l.nextHops))]
+		conn, err := net.Dial("udp", nextHop)
 		if err != nil {
 			l.logger.Println("dial target error:", err)
 			return
@@ -168,7 +171,7 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 		// add the connection to the incoming connections
 		l.addClient(raddr, conn)
 		// log new connection
-		l.logger.Printf("new connection from %s to %s", raddr.String(), l.nextHop)
+		l.logger.Printf("new connection from %s to %s", raddr.String(), nextHop)
 
 		// watch the connection
 		// the context is the address of incoming packet

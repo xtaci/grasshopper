@@ -51,7 +51,7 @@ var startCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Println("Version:", Version)
 		log.Println("Listening on:", config.Listen)
-		log.Println("Next hop:", config.NextHop)
+		log.Println("Next hops:", config.NextHops)
 		log.Println("Socket buffer:", config.SockBuf)
 		log.Println("Incoming crypto:", config.CI)
 		log.Println("Outgoing crypto:", config.CO)
@@ -77,7 +77,7 @@ var startCmd = &cobra.Command{
 		crypterOut := newCrypt(passOut, config.CO)
 
 		// Initialize and start the UDP listener.
-		listener, err := grasshopper.ListenWithOptions(config.Listen, config.NextHop, config.SockBuf, config.Timeout, crypterIn, crypterOut, log.Default())
+		listener, err := grasshopper.ListenWithOptions(config.Listen, config.NextHops, config.SockBuf, config.Timeout, crypterIn, crypterOut, log.Default())
 		if err != nil {
 			log.Fatal(err)
 		}

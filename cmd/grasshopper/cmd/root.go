@@ -65,7 +65,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("toggle", "t", false, "Help message for toggle")
 	rootCmd.PersistentFlags().StringVarP(&config.Listen, "listen", "l", ":1234", "listener address, eg: \"IP:1234\"")
 	rootCmd.PersistentFlags().IntVar(&config.SockBuf, "sockbuf", 1024*1024, "socket buffer for listener")
-	rootCmd.PersistentFlags().StringVarP(&config.NextHop, "nexthop", "n", "127.0.0.1:3000", "the server to forward to")
+	rootCmd.PersistentFlags().StringSliceVarP(&config.NextHops, "nexthops", "n", []string{"127.0.0.1:3000"}, "the servers to randomly forward to")
 	rootCmd.PersistentFlags().StringVar(&config.KI, "ki", "it's a secret", "The secret to encrypt and decrypt for the last hop(incoming)")
 	rootCmd.PersistentFlags().StringVar(&config.KO, "ko", "it's a secret", "The secret to encrypt and decrypt for the next hop(outgoing)")
 	rootCmd.PersistentFlags().StringVar(&config.CI, "ci", "3des", "The crytpgraphy method for incoming data, available: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")

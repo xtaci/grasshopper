@@ -30,14 +30,14 @@ import (
 
 // Config for server
 type Config struct {
-	Listen  string        `json:"listen"`
-	SockBuf int           `json:"sockbuf"`
-	NextHop string        `json:"nexthop"`
-	KI      string        `json:"ki"`
-	KO      string        `json:"ko"`
-	CI      string        `json:"ci"`
-	CO      string        `json:"co"`
-	Timeout time.Duration `json:"timeout"`
+	Listen   string        `json:"listen"`
+	SockBuf  int           `json:"sockbuf"`
+	NextHops []string      `json:"nexthops"`
+	KI       string        `json:"ki"`
+	KO       string        `json:"ko"`
+	CI       string        `json:"ci"`
+	CO       string        `json:"co"`
+	Timeout  time.Duration `json:"timeout"`
 }
 
 func parseJSONConfig(config *Config, path string) error {
