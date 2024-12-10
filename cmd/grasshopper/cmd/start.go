@@ -77,7 +77,7 @@ var startCmd = &cobra.Command{
 		crypterIn := newCrypt(passIn, config.CI)
 		passOut := pbkdf2.Key([]byte(config.KO), []byte(SALT), ITERATIONS, KEYLEN, sha1.New)
 		crypterOut := newCrypt(passOut, config.CO)
-		log.Println("Crytography initialized")
+		log.Println("Cryptography initialized")
 
 		// Initialize and start the UDP listener.
 		listener, err := grasshopper.ListenWithOptions(config.Listen, config.NextHops, config.SockBuf, config.Timeout, crypterIn, crypterOut, nil, nil, log.Default())
