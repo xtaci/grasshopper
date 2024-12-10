@@ -35,14 +35,22 @@ import (
 const (
 	// SALT is used for PBKDF2 key derivation.
 	SALT = "GRASSHOPPER"
+
+	// PBKDF2 iterations.
+	ITERATIONS = 4096
+
+	// PBKDF2 key length.
+	KEYLEN = 32
 )
 
-// Version specifies the current version of the application.
-// Injected by the build system.
-var Version = "undefined"
+var (
+	// Version specifies the current version of the application.
+	// Injected by the build system.
+	Version = "undefined"
 
-// allCryptoMethods lists all supported cryptographic methods.
-var allCryptoMethods = []string{"none", "sm4", "tea", "aes", "aes-128", "aes-192", "blowfish", "twofish", "cast5", "3des", "xtea", "salsa20"}
+	// allCryptoMethods lists all supported cryptographic methods.
+	allCryptoMethods = []string{"none", "sm4", "tea", "aes", "aes-128", "aes-192", "blowfish", "twofish", "cast5", "3des", "xtea", "salsa20"}
+)
 
 // startCmd represents the start command
 var startCmd = &cobra.Command{
@@ -53,15 +61,6 @@ var startCmd = &cobra.Command{
 		log.Println("Listening on:", config.Listen)
 		log.Println("Next hops:", config.NextHops)
 		log.Println("Socket buffer:", config.SockBuf)
-		log.Println("Incoming crypto:", config.CI)
-		log.Println("Outgoing crypto:", config.CO)
-
-		// Derive cryptographic keys using PBKDF2.
-		log.Println("Initiating key derivation(IN)")
-		passIn := pbkdf2.Key([]byte(config.KI), []byte(SALT), 4096, 32, sha1.New)
-		log.Println("Initiating key derivation(OUT)")
-		passOut := pbkdf2.Key([]byte(config.KO), []byte(SALT), 4096, 32, sha1.New)
-		log.Println("Key derivation done")
 
 		// Validate cryptographic methods.
 		if !slices.Contains(allCryptoMethods, config.CI) {
@@ -72,9 +71,13 @@ var startCmd = &cobra.Command{
 			log.Fatal("Invalid crypto method:", config.CO)
 		}
 
-		// Initialize cryptographic handlers.
+		// Derive cryptographic keys using PBKDF2.
+		log.Printf("Initiating Cryptography (In: %v)  <---> (Out: %v)", config.CI, config.CO)
+		passIn := pbkdf2.Key([]byte(config.KI), []byte(SALT), ITERATIONS, KEYLEN, sha1.New)
 		crypterIn := newCrypt(passIn, config.CI)
+		passOut := pbkdf2.Key([]byte(config.KO), []byte(SALT), ITERATIONS, KEYLEN, sha1.New)
 		crypterOut := newCrypt(passOut, config.CO)
+		log.Println("Crytography initialized")
 
 		// Initialize and start the UDP listener.
 		listener, err := grasshopper.ListenWithOptions(config.Listen, config.NextHops, config.SockBuf, config.Timeout, crypterIn, crypterOut, nil, nil, log.Default())
@@ -82,6 +85,7 @@ var startCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
+		log.Println("Ready")
 		listener.Start()
 	},
 }
