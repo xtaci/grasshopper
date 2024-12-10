@@ -61,13 +61,17 @@ type (
 
 	// Listener represents a UDP server that listens for incoming connections and relays them to the next hop.
 	Listener struct {
-		logger     *log.Logger      // logger
-		crypterIn  BlockCrypt       // crypter for incoming packets
-		crypterOut BlockCrypt       // crypter for outgoing packets
-		onPacketIn OnPacketReceived // callback for processing incoming packets
-		conn       *net.UDPConn     // the socket to listen on
-		timeout    time.Duration    // session timeout
-		sockbuf    int              // socket buffer size for the `conn`
+		logger     *log.Logger // logger
+		crypterIn  BlockCrypt  // crypter for incoming packets
+		crypterOut BlockCrypt  // crypter for outgoing packets
+
+		// callbacks for bidirectional communication
+		onClientIn  OnPacketReceived // callback on incoming packets from clients
+		onNextHopIn OnPacketReceived // callback on incoming packets from next hops
+
+		conn    *net.UDPConn  // the socket to listen on
+		timeout time.Duration // session timeout
+		sockbuf int           // socket buffer size for the `conn`
 
 		// connection pairing
 		nextHops                []string            // the outgoing addresses, the switcher will forward packets to one of them randomly.
@@ -100,7 +104,8 @@ func ListenWithOptions(laddr string,
 	sockbuf int,
 	timeout time.Duration,
 	crypterIn BlockCrypt, crypterOut BlockCrypt,
-	onPacketIn OnPacketReceived,
+	onClientIn OnPacketReceived,
+	onNextHopIn OnPacketReceived,
 	logger *log.Logger) (*Listener, error) {
 	udpaddr, err := net.ResolveUDPAddr("udp", laddr)
 	if err != nil {
@@ -135,7 +140,8 @@ func ListenWithOptions(laddr string,
 	l.die = make(chan struct{})
 	l.crypterIn = crypterIn
 	l.crypterOut = crypterOut
-	l.onPacketIn = onPacketIn
+	l.onClientIn = onClientIn
+	l.onNextHopIn = onNextHopIn
 	l.watcher = watcher
 	l.timeout = timeout
 	return l, nil
@@ -149,7 +155,7 @@ func (l *Listener) Start() {
 	for {
 		buf := make([]byte, mtuLimit)
 		if n, from, err := l.conn.ReadFrom(buf); err == nil {
-			l.packetIn(buf[:n], from)
+			l.clientIn(buf[:n], from)
 		} else {
 			l.logger.Fatal("Start:", err)
 			return
@@ -157,8 +163,8 @@ func (l *Listener) Start() {
 	}
 }
 
-// packetIn processes incoming packets and forwards them to the next hop.
-func (l *Listener) packetIn(data []byte, raddr net.Addr) {
+// clientIn processes incoming packets and forwards them to the next hop.
+func (l *Listener) clientIn(data []byte, raddr net.Addr) {
 	// decrypt the packet if crypterIn is set
 	data, err := decryptPacket(l.crypterIn, data)
 	if err != nil {
@@ -166,9 +172,9 @@ func (l *Listener) packetIn(data []byte, raddr net.Addr) {
 		return
 	}
 
-	// onPacketIn callback
-	if l.onPacketIn != nil {
-		data = l.onPacketIn(raddr, data)
+	// onClientIn callback
+	if l.onClientIn != nil {
+		data = l.onClientIn(raddr, data)
 	}
 
 	// encrypt or re-encrypt the packet if crypterOut is set(with new nonce)
@@ -238,6 +244,11 @@ func (l *Listener) switcher() {
 				if err != nil {
 					l.logger.Println("decrypt error:", err)
 					continue
+				}
+
+				// onNextHopIn callback
+				if l.onNextHopIn != nil {
+					dataFromProxy = l.onNextHopIn(res.Context.(net.Addr), dataFromProxy)
 				}
 
 				// re-encrypt data if crypterIn is set.
