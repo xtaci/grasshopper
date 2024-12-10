@@ -76,6 +76,10 @@ type (
 	}
 )
 
+func init() {
+	mrand.Seed(time.Now().UnixNano())
+}
+
 // ListenWithOptions initializes a new Listener with the provided options.
 // Parameters:
 // - laddr: Address to listen on.
