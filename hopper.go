@@ -55,6 +55,10 @@ const (
 	mtuLimit = 1500
 )
 
+var (
+	errNoNextHop = errors.New("no next hop provided")
+)
+
 type (
 	// OnClientInCallback is a callback function that processes incoming packets from clients
 	OnClientInCallback func(client net.Addr, in []byte) (out []byte)
@@ -117,6 +121,10 @@ func ListenWithOptions(laddr string,
 	conn, err := net.ListenUDP("udp", udpaddr)
 	if err != nil {
 		return nil, errors.WithStack(err)
+	}
+
+	if len(nexthops) == 0 {
+		return nil, errors.WithStack(errNoNextHop)
 	}
 
 	err = conn.SetReadBuffer(sockbuf)
