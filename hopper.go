@@ -221,7 +221,7 @@ func (l *Listener) clientIn(data []byte, raddr net.Addr) {
 		// the context is the address of incoming packet
 		ctx := raddr
 		l.watcher.ReadTimeout(ctx, conn, make([]byte, mtuLimit), time.Now().Add(l.timeout))
-		l.watcher.WriteTimeout(ctx, conn, data, time.Now().Add(l.timeout)) // write needs not to specify the context(where the packet from)
+		l.watcher.WriteTimeout(ctx, conn, data, time.Now().Add(l.timeout))
 	}
 }
 
