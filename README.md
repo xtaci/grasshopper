@@ -128,5 +128,3 @@ ncat -u 127.0.0.1 2132
 ```sh
 dig google.com @127.0.0.1 -p 4000
 ```
-
-Type something in the client to observe the relaying process in action.
