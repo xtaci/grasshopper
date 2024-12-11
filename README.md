@@ -4,26 +4,26 @@
 ## Architecture
 Grasshopper functions as a chained relay system. Take a chained DNS query For example:
 ```
-                             ┌────────────┐              ┌───────────────┐                             
-                             │ ENCRYPTED  │              │ RE-ENCRYPTION │                             
-                             └──────┬─────┘              │ AES ───► 3DES │                             
-                                    │                    └───┬───────────┘                             
-                                    │                        │                                         
-                         ┌─────────┐▼          ┌────────────┐│         ┌─────────┐                     
-                       <HOP0>   HOPS(AES)      │  DECRYPTED │▼      <HOP5>       │                     
-┌───────────────┐        └       ┌────┐        └  DATA   HOPS(3DES)    └        HOPS(FINAL)            
-│ dig xxx @hop0 ┼──► CLEAR TEXT  │HOP1┼─CIPHER──► PACKET  ┌─┴──┐   CIPHERTEXT  ┌────┐    ┌────────────┐
-└───────────────┘        ┌       │Hop2│        ┌          │Hop4├──────►(3DES)  │Hop6│───►│ 8.8.8.8:53 │
-                         │  ▲    │HOP3│      <HOP2>  ▲    │Hop5│       ┌       │Hop7│    └────────────┘
-                         │  │    └────┘        │     │    └─┬──┘       │       └────┘                  
-                         └──┼──────┘           └─────┼──────┘          └─────────┘                     
-                            │                        │                                                 
-                         ┌──┼────────┐               │                                                 
-                         │           │               │                                                 
-                         │ OPTIONAL  ┼───────────────┘                                                 
-                         │ PACKET    │                                                                 
-                         │ PROCESSOR │                                                                 
-                         │           │                                                                 
+                             ┌────────────┐                 ┌───────────────┐                                 
+                             │ ENCRYPTED  │                 │ RE-ENCRYPTION │                                 
+                             └──────┬─────┘                 │ AES ───► 3DES │                                 
+                                    │                       └───┬───────────┘                                 
+                                    │                           │                                             
+                         ┌─────────┐▼             ┌────────────┐│             ┌─────────┐                     
+                       <HOP0>   HOPS(AES)         │  DECRYPTED │▼          <HOP5>      HOPS(FINAL)            
+┌───────────────┐        └       ┌────┐           └  DATA   HOPS(3DES)        │         │                     
+│ dig xxx @hop0 ┼──► CLEAR TEXT  │HOP1┼── CIPHER ──► PACKET  ┌─┴──┐           └ DNS   ┌─┼──┐    ┌────────────┐
+└───────────────┘        ┌       │Hop2│   (AES)   ┌          │Hop4├─ CIPHER ──► QUERY │Hop6│───►│ 8.8.8.8:53 │
+                         │  ▲    │HOP3│         <HOP2>  ▲    │Hop5│  (3DES)   ┌       │Hop7│    └────────────┘
+                         │  │    └────┘           │     │    └─┬──┘           │       └────┘                  
+                         └──┼──────┘              └─────┼──────┘              └─────────┘                     
+                            │                           │                                                     
+                         ┌──┼────────┐                  │                                                     
+                         │           │                  │                                                     
+                         │ OPTIONAL  ┼──────────────────┘                                                     
+                         │ PACKET    │                                                                        
+                         │ PROCESSOR │                                                                        
+                         │           │                                                                        
                          └───────────┘
 ```
 
