@@ -64,7 +64,7 @@ Flags:
 Use "grasshopper [command] --help" for more information about a command.
 ```
 
-## Example Usage
+## Cases-1 Secure Echo
 
 ### Step 1: Start a UDP Echo Server
 
@@ -101,6 +101,32 @@ Use `ncat` to send UDP packets and interact with the relayer chain:
 
 ```sh
 ncat -u 127.0.0.1 2132
+```
+
+## Cases-2 Secure DNS query
+
+### Step 1: Start a Level-2 Relayer to the Google DNS Server(On your Cloud Server🖥️)
+
+```sh
+./grasshopper start --ci aes --co none -l "CLOUD_PUBLIC_IP:4000" -n "8.8.8.8:53"
+```
+
+- `--ci aes`: Decrypts the packet from Level-1 Relayer.
+- `--co none`: Transfers decrypted plaintext DNS query packet to Google DNS.
+
+### Step 2: Start a Level-1 Relayer to the Level-2 Relayer(On your Laptop💻)
+
+```sh
+./grasshopper start --ci none --co aes -l "127.0.0.1:4000" -n "CLOUD_PUBLIC_IP:4000"
+```
+
+- `--ci none`: Since `dig` command queries in plaintext, we do not need to decrypt the packet.
+- `--co aes`: Decrypts and relays packets to Level-2 Relayer
+
+### Step 3: Query via your local relayer (On your Laptop💻)
+
+```sh
+dig google.com @127.0.0.1 -p 4000
 ```
 
 Type something in the client to observe the relaying process in action.
