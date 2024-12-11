@@ -123,7 +123,7 @@ ncat -u 127.0.0.1 2132
 - `--ci none`: Since `dig` command queries in plaintext, we do not need to decrypt the packet.
 - `--co aes`: Decrypts and relays packets to Level-2 Relayer
 
-### Step 3: Query via your local relayer (On your Laptop💻)
+### Step 3: Query Level-1 Relayer with `dig`(On your Laptop💻)
 
 ```sh
 dig google.com @127.0.0.1 -p 4000
