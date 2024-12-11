@@ -24,7 +24,7 @@ Grasshopper functions as a chained relay system. Take a chained DNS query For ex
                          │ PACKET    │                                                                 
                          │ PROCESSOR │                                                                 
                          │           │                                                                 
-                         └───────────┘                                                                                                                            
+                         └───────────┘
 ```
 
 ## Installation
