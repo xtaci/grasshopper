@@ -2,33 +2,29 @@
 **Grasshopper** is a UDP packet forwarder that listens for incoming packets and forwards them to a configured destination. It optionally supports cryptography for both incoming and outgoing packets, using different keys and methods.
 
 ## Architecture
-Grasshopper functions as a chained relay system. For example:
+Grasshopper functions as a chained relay system. Take a chained DNS query For example:
 ```
-                                                    ┌───────────────┐                              
-                                                    │ RE-ENCRYPTION │                              
-                                                    └───────┬───────┘                              
-                                                            │                                      
-                                                            │                                      
-                                                            │                                      
-                                                            │                                      
-                    ┌─────────┐           ┌────HOP2────┐    │     ┌─HOP5────┐                      
-                    │        HOPS         │            │    │     │         │                      
-┌─────────────┐  Client     ┌────┐      ClientPLAIN   HOPS  │   Client     HOPS     ┌─────────────┐
-│             │    AES      │HOP1┼─────► 3DES TEXT   ┌────┐ ▼  BLOWFISH  ┌─────┐    │             │
-│ UDP CLIENT  ├───► │  DATA │Hop2│        │   PACKET │Hop4├──────►│      │ Hop6│───►│  UDP SERVER │
-│             │     │    ▲  │HOP3│        │     ▲    │Hop5│       │      │ Hop7│    │             │
-└─────────────┘     │    │  └────┘        │     │    └────┘       │      └─────┘    └─────────────┘
-                    └────┼────┘           └─────┼──────┘          └─────────┘                      
-                         │                      │                                                  
-                         │                      │                                                  
-                         │                      │                                                  
-                    ┌────┼──────┐               │                                                  
-                    │           │               │                                                  
-                    │ OPTIONAL  ┼───────────────┘                                                  
-                    │ PACKET    │                                                                  
-                    │ PROCESSOR │                                                                  
-                    │           │                                                                  
-                    └───────────┘             
+                             ┌────────────┐              ┌───────────────┐                             
+                             │ ENCRYPTED  │              │ RE-ENCRYPTION │                             
+                             └──────┬─────┘              │ AES ───► 3DES │                             
+                                    │                    └───┬───────────┘                             
+                                    │                        │                                         
+                         ┌─────────┐▼          ┌────────────┐│         ┌─────────┐                     
+                       <HOP0>   HOPS(AES)      │  DECRYPTED │▼      <HOP5>       │                     
+┌───────────────┐        └       ┌────┐        └  DATA   HOPS(3DES)    └        HOPS(FINAL)            
+│ dig xxx @hop0 ┼──► CLEAR TEXT  │HOP1┼─CIPHER──► PACKET  ┌─┴──┐   CIPHERTEXT  ┌────┐    ┌────────────┐
+└───────────────┘        ┌       │Hop2│        ┌          │Hop4├──────►(3DES)  │Hop6│───►│ 8.8.8.8:53 │
+                         │  ▲    │HOP3│      <HOP2>  ▲    │Hop5│       ┌       │Hop7│    └────────────┘
+                         │  │    └────┘        │     │    └─┬──┘       │       └────┘                  
+                         └──┼──────┘           └─────┼──────┘          └─────────┘                     
+                            │                        │                                                 
+                         ┌──┼────────┐               │                                                 
+                         │           │               │                                                 
+                         │ OPTIONAL  ┼───────────────┘                                                 
+                         │ PACKET    │                                                                 
+                         │ PROCESSOR │                                                                 
+                         │           │                                                                 
+                         └───────────┘                                                                                                                            
 ```
 
 ## Installation
