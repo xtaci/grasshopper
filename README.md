@@ -1,9 +1,8 @@
 # 🦗 grasshopper
-The grasshopper will listen for incoming UDP packets and forward them to the configured destination.
-Optionally, the listener can be configured to apply cryptogrraphy on both the incoming and outgoing packets, with different keys and methods.
+**Grasshopper** is a UDP packet forwarder that listens for incoming packets and forwards them to a configured destination. It optionally supports cryptography for both incoming and outgoing packets, using different keys and methods.
 
 ## Architecture
-The grasshopper acts like a chained-relayer, for example
+Grasshopper functions as a chained relay system. For example:
 
 ```
 gh = grasshopper
@@ -11,15 +10,19 @@ client --------------> relayer1(gh) --------------> relayer2(gh) ---------------
         plaintext                     encrypted                    re-encrypted                        decrypted
 ```
 
-## Install
-```
+## Installation
+
+Install the latest version of Grasshopper using the following command:
+
+```sh
 go install  github.com/xtaci/grasshopper/cmd/grasshopper@latest     
 ```
 
 ## Parameters
-```
-The grasshopper will listen for incoming UDP packets and forward them to the configured destination.
-Optionally, the listener can be configured to apply cryptogrraphy on both the incoming and outgoing packets, with different keys and methods.
+Grasshopper supports the following parameters:
+
+```text
+Grasshopper is a UDP packet forwarder that listens for incoming packets and forwards them to a configured destination. It optionally supports cryptography for both incoming and outgoing packets, using different keys and methods.  Optionally, the listener can be configured to apply cryptogrraphy on both the incoming and outgoing packets, with different keys and methods.
 
 Usage:
   grasshopper [command]
@@ -30,15 +33,15 @@ Available Commands:
   start       Start a listener for UDP packet forwarding
 
 Flags:
-      --ci string          The crytpgraphy method for incoming data, available: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "3des")
-      --co string          The crytpgraphy method for outgoing data, available: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "3des")
+      --ci string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "3des")
+      --co string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "3des")
   -h, --help               help for grasshopper
-      --ki string          The secret to encrypt and decrypt for the last hop(incoming) (default "it's a secret")
-      --ko string          The secret to encrypt and decrypt for the next hop(outgoing) (default "it's a secret")
-  -l, --listen string      listener address, eg: "IP:1234" (default ":1234")
-  -n, --nexthops strings   the servers to randomly forward to (default [127.0.0.1:3000])
-      --sockbuf int        socket buffer for listener (default 1048576)
-      --timeout duration   set how long an UDP connection can live when in idle(in seconds) (default 10m0s)
+      --ki string          Secret key to encrypt and decrypt for the last hop(client-side) (default "it's a secret")
+      --ko string          Secret key to encrypt and decrypt for the next hops (default "it's a secret")
+  -l, --listen string      Listener address, eg: "IP:1234" (default ":1234")
+  -n, --nexthops strings   Servers to randomly forward to (default [127.0.0.1:3000])
+      --sockbuf int        Socket buffer size for the listener (default 1048576)
+      --timeout duration   Idle timeout duration for a UDP connection (default 1m0s)
   -t, --toggle             Help message for toggle
 
 Use "grasshopper [command] --help" for more information about a command.
@@ -46,26 +49,41 @@ Use "grasshopper [command] --help" for more information about a command.
 
 ## Example Usage
 
-Step 1: start an UDP echo server with ncat with port 5000
-```
+### Step 1: Start a UDP Echo Server
+
+Use `ncat` to start a UDP echo server on port 5000:
+
+```sh
 ncat -e /bin/cat -k -u -l 5000
 ```
+### Step 2: Start a Level-2 Relayer to the Echo Server
 
-Step 2: Start the Level-2 relayer to ncat echo 
-```
+Run the following command to start a relayer:
+
+```sh
 ./grasshopper start --ci aes --co none -l "127.0.0.1:4001" -n "127.0.0.1:5000"
---ci aes means we apply cryptography on incoming packets
---co none means we transfer cleartext to ncat echo server
 ```
 
-Step 3: Start the Level-1 relayer to Level-2 relayer, meanwhile encrypt the packet
-```
+- `--ci aes`: Applies cryptography on incoming packets.
+- `--co none`: Transfers plaintext to the `ncat` echo server.
+
+### Step 3: Start a Level-1 Relayer to the Level-2 Relayer
+
+Run the following command to start another relayer:
+
+```sh
 ./grasshopper start --ci none --co aes -l "127.0.0.1:4000" -n "127.0.0.1:4001"
---ci none means we don't apply cryptography on incoming packets
---co aes means we encrypt and relay the encrypted packets to next hop
 ```
 
-Step 4: Start a demo client, try to type in something.
-```
+- `--ci none`: No cryptography is applied to incoming packets.
+- `--co aes`: Encrypts and relays packets to the next hop.
+
+### Step 4: Start a Demo Client
+
+Use `ncat` to send UDP packets and interact with the relayer chain:
+
+```sh
 ncat -u 127.0.0.1 2132
 ```
+
+Type something in the client to observe the relaying process in action.

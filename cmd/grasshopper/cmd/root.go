@@ -34,9 +34,8 @@ var config = &Config{}
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "grasshopper",
-	Short: "A secure UDP relayer",
-	Long: `The grasshopper will listen for incoming UDP packets and forward them to the configured destination.
-Optionally, the listener can be configured to apply cryptogrraphy on both the incoming and outgoing packets, with different keys and methods.
+	Short: "A secure chained relayer for UDP",
+	Long: `Grasshopper is a UDP packet forwarder that listens for incoming packets and forwards them to a configured destination. It optionally supports cryptography for both incoming and outgoing packets, using different keys and methods.  Optionally, the listener can be configured to apply cryptogrraphy on both the incoming and outgoing packets, with different keys and methods.
 `,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
@@ -63,12 +62,12 @@ func init() {
 	// when this action is called directly.
 
 	rootCmd.PersistentFlags().BoolP("toggle", "t", false, "Help message for toggle")
-	rootCmd.PersistentFlags().StringVarP(&config.Listen, "listen", "l", ":1234", "listener address, eg: \"IP:1234\"")
-	rootCmd.PersistentFlags().IntVar(&config.SockBuf, "sockbuf", 1024*1024, "socket buffer for listener")
-	rootCmd.PersistentFlags().StringSliceVarP(&config.NextHops, "nexthops", "n", []string{"127.0.0.1:3000"}, "the servers to randomly forward to")
-	rootCmd.PersistentFlags().StringVar(&config.KI, "ki", "it's a secret", "The secret to encrypt and decrypt for the last hop(incoming)")
-	rootCmd.PersistentFlags().StringVar(&config.KO, "ko", "it's a secret", "The secret to encrypt and decrypt for the next hop(outgoing)")
-	rootCmd.PersistentFlags().StringVar(&config.CI, "ci", "3des", "The crytpgraphy method for incoming data, available: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
-	rootCmd.PersistentFlags().StringVar(&config.CO, "co", "3des", "The crytpgraphy method for outgoing data, available: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
-	rootCmd.PersistentFlags().DurationVar(&config.Timeout, "timeout", 60*time.Second, "set how long an UDP connection can live when in idle(in seconds)")
+	rootCmd.PersistentFlags().StringVarP(&config.Listen, "listen", "l", ":1234", "Listener address, eg: \"IP:1234\"")
+	rootCmd.PersistentFlags().IntVar(&config.SockBuf, "sockbuf", 1024*1024, "Socket buffer size for the listener")
+	rootCmd.PersistentFlags().StringSliceVarP(&config.NextHops, "nexthops", "n", []string{"127.0.0.1:3000"}, "Servers to randomly forward to")
+	rootCmd.PersistentFlags().StringVar(&config.KI, "ki", "it's a secret", "Secret key to encrypt and decrypt for the last hop(client-side)")
+	rootCmd.PersistentFlags().StringVar(&config.KO, "ko", "it's a secret", "Secret key to encrypt and decrypt for the next hops")
+	rootCmd.PersistentFlags().StringVar(&config.CI, "ci", "3des", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
+	rootCmd.PersistentFlags().StringVar(&config.CO, "co", "3des", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
+	rootCmd.PersistentFlags().DurationVar(&config.Timeout, "timeout", 60*time.Second, "Idle timeout duration for a UDP connection")
 }
