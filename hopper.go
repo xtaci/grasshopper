@@ -263,20 +263,19 @@ func (l *Listener) switcher() {
 					continue RESULTS_LOOP
 				}
 
-				// onNextHopIn callback
+				// onNextHopIn callback post processing
 				if l.onNextHopIn != nil {
 					dataFromProxy = l.onNextHopIn(res.Conn.RemoteAddr(), res.Context.(net.Addr), dataFromProxy)
-					// blackhole the packet if the callback returns nil.
-					if dataFromProxy == nil {
-						continue RESULTS_LOOP
-					}
 				}
 
-				// re-encrypt data if crypterIn is set.
-				dataFromProxy = encryptPacket(l.crypterIn, dataFromProxy)
+				// forward the data to the client if not nil.
+				if dataFromProxy != nil {
+					// re-encrypt data if crypterIn is set.
+					dataFromProxy = encryptPacket(l.crypterIn, dataFromProxy)
 
-				// forward the data to client via the listener.
-				l.conn.WriteTo(dataFromProxy, res.Context.(net.Addr))
+					// forward the data to client via the listener.
+					l.conn.WriteTo(dataFromProxy, res.Context.(net.Addr))
+				}
 
 				// fire next read-request to the proxy connection.
 				l.watcher.ReadTimeout(res.Context, res.Conn, make([]byte, mtuLimit), time.Now().Add(l.timeout))
