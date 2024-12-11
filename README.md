@@ -4,31 +4,31 @@
 ## Architecture
 Grasshopper functions as a chained relay system. For example:
 ```
-                                                           ┌───────────────┐                                          
-                                                           │ RE-ENCRYPTION │                                          
-                                                           └───────┬───────┘                                          
-                                                                   │                                                  
-                                                                   │                                                  
-                                                                   │                                                  
-                                                                   │                                                  
-                      ┌────────────┐             ┌────────────┐    │        ┌────────────┐                            
-                      │           HOPS           │            │    │        │            │                            
-┌─────────────┐    Client        ┌────┐        ClientPLAIN   HOPS  │      Client        HOPS       ┌─────────────────┐
-│             │      AES         │HOP1┼───────► 3DES TEXT   ┌────┐ ▼     BLOWFISH     ┌─────┐      │                 │
-│ UDP CLIENT  ├─────► │  DATA    │Hop2│          │   PACKET │Hop1│─────────►│         │ Hop1│─────►│  UDP SERVER     │
-│             │       │    ▲     │HOP3│          │     ▲    │Hop2│          │         │ Hop2│      │                 │
-└─────────────┘       │    │     └────┘          │     │    └────┘          │         └─────┘      └─────────────────┘
-                      └────┼───────┘             └─────┼──────┘             └────────────┘                            
-                           │                           │                                                              
-                           │                           │                                                              
-                           │                           │                                                              
-                      ┌────┼──────┐                    │                                                              
-                      │           │                    │                                                              
-                      │ OPTIONAL  ┼────────────────────┘                                                              
-                      │ PACKET    │                                                                                   
-                      │ PROCESSOR │                                                                                   
-                      │           │                                                                                   
-                      └───────────┘                                                                                                                                                               
+                                                    ┌───────────────┐                              
+                                                    │ RE-ENCRYPTION │                              
+                                                    └───────┬───────┘                              
+                                                            │                                      
+                                                            │                                      
+                                                            │                                      
+                                                            │                                      
+                    ┌─────────┐           ┌────HOP2────┐    │     ┌─HOP5────┐                      
+                    │        HOPS         │            │    │     │         │                      
+┌─────────────┐  Client     ┌────┐      ClientPLAIN   HOPS  │   Client     HOPS     ┌─────────────┐
+│             │    AES      │HOP1┼─────► 3DES TEXT   ┌────┐ ▼  BLOWFISH  ┌─────┐    │             │
+│ UDP CLIENT  ├───► │  DATA │Hop2│        │   PACKET │Hop4├──────►│      │ Hop6│───►│  UDP SERVER │
+│             │     │    ▲  │HOP3│        │     ▲    │Hop5│       │      │ Hop7│    │             │
+└─────────────┘     │    │  └────┘        │     │    └────┘       │      └─────┘    └─────────────┘
+                    └────┼────┘           └─────┼──────┘          └─────────┘                      
+                         │                      │                                                  
+                         │                      │                                                  
+                         │                      │                                                  
+                    ┌────┼──────┐               │                                                  
+                    │           │               │                                                  
+                    │ OPTIONAL  ┼───────────────┘                                                  
+                    │ PACKET    │                                                                  
+                    │ PROCESSOR │                                                                  
+                    │           │                                                                  
+                    └───────────┘             
 ```
 
 ## Installation
