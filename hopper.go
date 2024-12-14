@@ -23,11 +23,11 @@
 package grasshopper
 
 import (
+	"bytes"
+	"crypto/md5"
 	"crypto/rand"
 	mrand "math/rand"
 
-	"encoding/binary"
-	"hash/crc32"
 	"io"
 	"log"
 	"net"
@@ -39,16 +39,18 @@ import (
 )
 
 const (
-	// nonceSize defines the size of the additional nonce (16 bytes) added to each UDP packet.
-	nonceSize   = 12
+	// nonceSize defines the size of the additional nonce (8 bytes) added to each UDP packet.
+	// Based on shannon's theory of cryptography, this nonce introduces 2^(8*8) confusion bits.
+	nonceSize   = 8
 	nonceOffset = 0
 
-	// checksumSize defines the size of the checksum (4 bytes) added to each UDP packet.
-	checksumSize   = 4
+	// checksumSize defines the size of the checksum (8 bytes) added to each UDP packet.
+	// The checksum and nonce together plays the role of an authentication tag.
+	checksumSize   = 8
 	checksumOffset = nonceSize
 
 	// headerSize defines the size of the header (nonce + checksum) added to each UDP packet.
-	// | nonce(12 bytes) | checksum(4 bytes) | data |
+	// | nonce(8 bytes) | checksum(8 bytes) | data |
 	headerSize = nonceSize + checksumSize
 
 	// mtuLimit specifies the maximum transmission unit (MTU) size for a packet.
@@ -313,8 +315,9 @@ func (l *Listener) Close() error {
 func decryptPacket(crypter BlockCrypt, packet []byte) (data []byte, err error) {
 	if crypter != nil && len(packet) >= headerSize {
 		crypter.Decrypt(packet, packet)
-		checksum := crc32.ChecksumIEEE(packet[headerSize:])
-		if checksum != binary.LittleEndian.Uint32(packet[checksumOffset:]) {
+		// use the first 8 byte of md5 digest as the checksum
+		checksum := md5.Sum(packet[headerSize:])
+		if !bytes.Equal(checksum[:checksumSize], packet[checksumOffset:checksumOffset+checksumSize]) {
 			return nil, errChecksum
 		}
 		data = packet[headerSize:]
@@ -333,9 +336,9 @@ func encryptPacket(crypter BlockCrypt, data []byte) (packet []byte) {
 		copy(packet[headerSize:], data)
 		// fill the nonce(12 bytes)
 		_, _ = io.ReadFull(rand.Reader, packet[nonceOffset:nonceOffset+nonceSize])
-		// fill the checksum(4 bytes)
-		checksum := crc32.ChecksumIEEE(data)
-		binary.LittleEndian.PutUint32(packet[checksumOffset:], checksum)
+		// fill in half MD5(8 bytes)
+		checksum := md5.Sum(packet[headerSize:])
+		copy(packet[checksumOffset:], checksum[:checksumSize])
 		// encrypt the packet
 		crypter.Encrypt(packet, packet)
 	} else {
