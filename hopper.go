@@ -315,7 +315,7 @@ func (l *Listener) Close() error {
 func decryptPacket(crypter BlockCrypt, packet []byte) (data []byte, err error) {
 	if crypter != nil && len(packet) >= headerSize {
 		crypter.Decrypt(packet, packet)
-		// use the first 8 byte of md5 digest as the checksum
+		// use the first 8 bytes of md5 digest as the checksum
 		checksum := md5.Sum(packet[headerSize:])
 		if !bytes.Equal(checksum[:checksumSize], packet[checksumOffset:checksumOffset+checksumSize]) {
 			return nil, errChecksum
@@ -334,7 +334,7 @@ func encryptPacket(crypter BlockCrypt, data []byte) (packet []byte) {
 	if crypter != nil {
 		packet = make([]byte, len(data)+headerSize)
 		copy(packet[headerSize:], data)
-		// fill the nonce(12 bytes)
+		// fill the nonce(8 bytes)
 		_, _ = io.ReadFull(rand.Reader, packet[nonceOffset:nonceOffset+nonceSize])
 		// fill in half MD5(8 bytes)
 		checksum := md5.Sum(packet[headerSize:])
