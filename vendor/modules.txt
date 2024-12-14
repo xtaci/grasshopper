@@ -22,7 +22,7 @@ github.com/tjfoc/gmsm/sm4
 # github.com/xtaci/gaio v1.2.22
 ## explicit; go 1.13
 github.com/xtaci/gaio
-# golang.org/x/crypto v0.30.0
+# golang.org/x/crypto v0.31.0
 ## explicit; go 1.20
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/cast5
