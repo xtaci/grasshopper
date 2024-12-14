@@ -75,7 +75,7 @@ Flags:
 Use "grasshopper [command] --help" for more information about a command.
 ```
 
-## Cases-1 Secure Echo
+## Cases-Ⅰ Secure Echo
 
 ### Step 1: Start a UDP Echo Server
 
@@ -114,7 +114,7 @@ Use `ncat` to send UDP packets and interact with the relayer chain:
 ncat -u 127.0.0.1 2132
 ```
 
-## Cases-2 Secure DNS query
+## Case-Ⅱ Secure DNS query
 ```
 ┌──────────── YOUR─LAPTOP ──────────────┐           ┌────────── CLOUD─SERVER ───────────┐
 │                                       │           │                                   │
