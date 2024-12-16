@@ -49,7 +49,7 @@ var (
 	Version = "undefined"
 
 	// allCryptoMethods lists all supported cryptographic methods.
-	allCryptoMethods = []string{"none", "sm4", "tea", "aes", "aes-128", "aes-192", "blowfish", "twofish", "cast5", "3des", "xtea", "salsa20"}
+	allCryptoMethods = []string{"none", "qpp", "sm4", "tea", "aes", "aes-128", "aes-192", "blowfish", "twofish", "cast5", "3des", "xtea", "salsa20"}
 )
 
 // startCmd represents the start command
@@ -123,6 +123,8 @@ func newCrypt(pass []byte, method string) grasshopper.BlockCrypt {
 		block, _ = grasshopper.NewXTEABlockCrypt(pass[:16])
 	case "salsa20":
 		block, _ = grasshopper.NewSalsa20BlockCrypt(pass)
+	case "qpp":
+		block, _ = grasshopper.NewQPPCrypt(pass)
 	}
 	return block
 }

@@ -67,7 +67,7 @@ func init() {
 	rootCmd.PersistentFlags().StringSliceVarP(&config.NextHops, "nexthops", "n", []string{"127.0.0.1:3000"}, "Servers to randomly forward to")
 	rootCmd.PersistentFlags().StringVar(&config.KI, "ki", "it's a secret", "Secret key to encrypt and decrypt for the last hop(client-side)")
 	rootCmd.PersistentFlags().StringVar(&config.KO, "ko", "it's a secret", "Secret key to encrypt and decrypt for the next hops")
-	rootCmd.PersistentFlags().StringVar(&config.CI, "ci", "3des", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
-	rootCmd.PersistentFlags().StringVar(&config.CO, "co", "3des", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
+	rootCmd.PersistentFlags().StringVar(&config.CI, "ci", "3des", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
+	rootCmd.PersistentFlags().StringVar(&config.CO, "co", "3des", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
 	rootCmd.PersistentFlags().DurationVar(&config.Timeout, "timeout", 60*time.Second, "Idle timeout duration for a UDP connection")
 }
