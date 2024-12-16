@@ -189,10 +189,11 @@ func (l *Listener) clientIn(data []byte, raddr net.Addr) {
 	// onClientIn callback
 	if l.onClientIn != nil {
 		data = l.onClientIn(raddr, data)
-		// blackhole the packet if the callback returns nil
-		if data == nil {
-			return
-		}
+	}
+
+	// blackhole if the data is nil after onClientIn callback
+	if data == nil {
+		return
 	}
 
 	// encrypt or re-encrypt the packet if crypterOut is set(with new nonce)
