@@ -114,7 +114,7 @@ Use `ncat` to send UDP packets and interact with the relayer chain:
 ncat -u 127.0.0.1 2132
 ```
 
-## Case-Ⅱ Secure DNS query
+## Case-Ⅱ Secure DNS query(Random Selection)
 ```
 ┌──────────── YOUR─LAPTOP ──────────────┐           ┌────────── CLOUD─SERVER ───────────┐
 │                                       │           │                                   │
