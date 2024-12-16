@@ -115,10 +115,18 @@ func TestSalsa20(t *testing.T) {
 	cryptTest(t, bc)
 }
 
+func TestQPP(t *testing.T) {
+	bc, err := NewQPPCrypt(pass[:32])
+	if err != nil {
+		t.Fatal(err)
+	}
+	cryptTest(t, bc)
+}
+
 func cryptTest(t *testing.T, bc BlockCrypt) {
 	for i := 0; i < 128; i++ {
-		// get a random number between 8 and mtuLimit
-		size := mrand.Intn(mtuLimit-8) + 8
+		// get a random number between 16 and mtuLimit
+		size := mrand.Intn(mtuLimit-16) + 16
 
 		data := make([]byte, size)
 		io.ReadFull(rand.Reader, data)
@@ -218,6 +226,14 @@ func BenchmarkXTEA(b *testing.B) {
 
 func BenchmarkSalsa20(b *testing.B) {
 	bc, err := NewSalsa20BlockCrypt(pass[:32])
+	if err != nil {
+		b.Fatal(err)
+	}
+	benchCrypt(b, bc)
+}
+
+func BenchmarkQPP(b *testing.B) {
+	bc, err := NewQPPCrypt(pass[:32])
 	if err != nil {
 		b.Fatal(err)
 	}

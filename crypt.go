@@ -30,6 +30,7 @@ import (
 
 	xor "github.com/templexxx/xorsimd"
 	"github.com/tjfoc/gmsm/sm4"
+	"github.com/xtaci/qpp"
 
 	"golang.org/x/crypto/blowfish"
 	"golang.org/x/crypto/cast5"
@@ -240,6 +241,30 @@ func NewXTEABlockCrypt(key []byte) (BlockCrypt, error) {
 
 func (c *xteaBlockCrypt) Encrypt(dst, src []byte) { encrypt(c.block, dst, src, c.encbuf[:]) }
 func (c *xteaBlockCrypt) Decrypt(dst, src []byte) { decrypt(c.block, dst, src, c.decbuf[:]) }
+
+type qppCrypt struct {
+	quantum *qpp.QuantumPermutationPad
+}
+
+// NewQPPCrypt https://link.springer.com/content/pdf/10.1140/epjqt/s40507-023-00164-3.pdf
+func NewQPPCrypt(key []byte) (BlockCrypt, error) {
+	const numPad = 251
+	c := new(qppCrypt)
+	c.quantum = qpp.NewQPP(key, numPad)
+	return c, nil
+}
+
+func (c *qppCrypt) Encrypt(dst, src []byte) {
+	copy(dst, src)
+	prng := c.quantum.CreatePRNG(dst[:16])
+	c.quantum.EncryptWithPRNG(dst[16:], prng)
+}
+
+func (c *qppCrypt) Decrypt(dst, src []byte) {
+	copy(dst, src)
+	prng := c.quantum.CreatePRNG(dst[:16])
+	c.quantum.DecryptWithPRNG(dst[16:], prng)
+}
 
 // packet encryption with local CFB mode
 func encrypt(block cipher.Block, dst, src, buf []byte) {
