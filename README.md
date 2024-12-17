@@ -61,8 +61,8 @@ Available Commands:
   start       Start a listener for UDP packet forwarding
 
 Flags:
-      --ci string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "3des")
-      --co string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "3des")
+      --ci string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "3des")
+      --co string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "3des")
   -h, --help               help for grasshopper
       --ki string          Secret key to encrypt and decrypt for the last hop(client-side) (default "it's a secret")
       --ko string          Secret key to encrypt and decrypt for the next hops (default "it's a secret")
@@ -74,6 +74,18 @@ Flags:
 
 Use "grasshopper [command] --help" for more information about a command.
 ```
+
+## Cryptgraphy Support
+- SM4([国密](https://en.wikipedia.org/wiki/SM4_(cipher)))
+- AES([Advanced Encryption Standard](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard)), 128,192,256 bit
+- QPP([Quantum Permutation Pad](https://epjquantumtechnology.springeropen.com/articles/10.1140/epjqt/s40507-022-00145-y))
+- Salsa20(https://en.wikipedia.org/wiki/Salsa20)
+- Blowfish(https://en.wikipedia.org/wiki/Blowfish_(cipher))
+- Twofish(https://en.wikipedia.org/wiki/Twofish)
+- Cast5(https://en.wikipedia.org/wiki/CAST-128)
+- 3DES(https://en.wikipedia.org/wiki/Triple_DES)
+- Tea([Tiny Encryption Algorithm](https://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm))
+- XTea(https://en.wikipedia.org/wiki/XTEA)
 
 ## Cases-Ⅰ Secure Echo
 
