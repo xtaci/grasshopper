@@ -243,6 +243,7 @@ func (c *xteaBlockCrypt) Encrypt(dst, src []byte) { encrypt(c.block, dst, src, c
 func (c *xteaBlockCrypt) Decrypt(dst, src []byte) { decrypt(c.block, dst, src, c.decbuf[:]) }
 
 type qppCrypt struct {
+	key     []byte
 	quantum *qpp.QuantumPermutationPad
 }
 
@@ -250,19 +251,27 @@ type qppCrypt struct {
 func NewQPPCrypt(key []byte) (BlockCrypt, error) {
 	const numPad = 251
 	c := new(qppCrypt)
+	c.key = make([]byte, len(key))
+	copy(c.key, key)
 	c.quantum = qpp.NewQPP(key, numPad)
 	return c, nil
 }
 
 func (c *qppCrypt) Encrypt(dst, src []byte) {
 	copy(dst, src)
-	prng := c.quantum.CreatePRNG(dst[:8])
+	seed := make([]byte, 8+len(c.key))
+	copy(seed, dst[:8])
+	copy(seed[8:], c.key)
+	prng := c.quantum.CreatePRNG(seed)
 	c.quantum.EncryptWithPRNG(dst[8:], prng)
 }
 
 func (c *qppCrypt) Decrypt(dst, src []byte) {
 	copy(dst, src)
-	prng := c.quantum.CreatePRNG(dst[:8])
+	seed := make([]byte, 8+len(c.key))
+	copy(seed, dst[:8])
+	copy(seed[8:], c.key)
+	prng := c.quantum.CreatePRNG(seed)
 	c.quantum.DecryptWithPRNG(dst[8:], prng)
 }
 
