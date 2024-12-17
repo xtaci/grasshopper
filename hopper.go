@@ -71,7 +71,7 @@ type (
 
 	// Listener represents a UDP server that listens for incoming connections and relays them to the next hop.
 	Listener struct {
-		started    sync.Once   // Ensures the listener is started only once.
+		startOnce  sync.Once   // Ensures the listener is started only once.
 		logger     *log.Logger // logger
 		crypterIn  BlockCrypt  // crypter for incoming packets
 		crypterOut BlockCrypt  // crypter for outgoing packets
@@ -165,7 +165,7 @@ func ListenWithOptions(laddr string,
 // Start begins the listener loop, handling incoming packets and forwarding them.
 // It blocks until the listener is closed or encounters an error.
 func (l *Listener) Start() {
-	l.started.Do(func() {
+	l.startOnce.Do(func() {
 		go l.switcher()
 
 		for {
