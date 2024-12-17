@@ -33,8 +33,9 @@ var config = &Config{}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "grasshopper",
-	Short: "A secure chained relayer for UDP",
+	Use:     "grasshopper",
+	Version: Version,
+	Short:   "A secure chained relayer for UDP",
 	Long: `Grasshopper is a UDP packet forwarder that listens for incoming packets and forwards them to a configured destination. It optionally supports cryptography for both incoming and outgoing packets, using different keys and methods.  Optionally, the listener can be configured to apply cryptogrraphy on both the incoming and outgoing packets, with different keys and methods.
 `,
 	// Uncomment the following line if your bare application
