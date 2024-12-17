@@ -77,7 +77,7 @@ Flags:
 Use "grasshopper [command] --help" for more information about a command.
 ```
 
-## Cryptgraphy Support
+## Cryptography Support
 - SM4([国密](https://en.wikipedia.org/wiki/SM4_(cipher)))
 - AES([Advanced Encryption Standard](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard)), 128,192,256 bit
 - QPP([Quantum Permutation Pad](https://epjquantumtechnology.springeropen.com/articles/10.1140/epjqt/s40507-022-00145-y))
