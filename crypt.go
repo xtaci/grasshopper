@@ -256,14 +256,14 @@ func NewQPPCrypt(key []byte) (BlockCrypt, error) {
 
 func (c *qppCrypt) Encrypt(dst, src []byte) {
 	copy(dst, src)
-	prng := c.quantum.CreatePRNG(dst[:16])
-	c.quantum.EncryptWithPRNG(dst[16:], prng)
+	prng := c.quantum.CreatePRNG(dst[:8])
+	c.quantum.EncryptWithPRNG(dst[8:], prng)
 }
 
 func (c *qppCrypt) Decrypt(dst, src []byte) {
 	copy(dst, src)
-	prng := c.quantum.CreatePRNG(dst[:16])
-	c.quantum.DecryptWithPRNG(dst[16:], prng)
+	prng := c.quantum.CreatePRNG(dst[:8])
+	c.quantum.DecryptWithPRNG(dst[8:], prng)
 }
 
 // packet encryption with local CFB mode
