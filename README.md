@@ -24,9 +24,9 @@ Grasshopper functions as a chained relay system. Take a chained DNS query For ex
                              │                           │                                             
                   ┌─────────┐▼             ┌────────────┐│             ┌─────────┐                     
                 <HOP0>   HOPS(AES)         │  DECRYPTED │▼          <HOP5>      HOPS(FINAL)            
-┌─────────┐       └       ┌────┐           └  DATA   HOPS(3DES)        │       ┌─┴──┐    ┌────────────┐
-│ dig xxx ├─► CLEAR TEXT  │HOP1┼── CIPHER ──► PACKET  ┌─┴──┐           └ DNS   │Hop6├────► 8.8.8.8:53 │
-│ @hop0   │       ┌       │Hop2│   (AES)   ┌          │Hop4├─ CIPHER ──► QUERY │Hop7│    └────────────┘
+┌─────────┐       └       ┌────┐           └  DATA   HOPS(3DES)        │       ┌─┴──┐  ┌────────────┐
+│ dig xxx ├─► CLEAR TEXT  │HOP1┼── CIPHER ──► PACKET  ┌─┴──┐           └ DNS   │Hop6├──► 8.8.8.8:53 │
+│ @hop0   │       ┌       │Hop2│   (AES)   ┌          │Hop4├─ CIPHER ──► QUERY │Hop7│  └────────────┘
 └─────────┘       │  ▲    │HOP3│         <HOP2>  ▲    │Hop5│  (3DES)   ┌       └─┬──┘                  
                   │  │    └────┘           │     │    └─┬──┘           │         │                     
                   └──┼──────┘              └─────┼──────┘              └─────────┘                     
