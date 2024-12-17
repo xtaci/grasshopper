@@ -1,5 +1,5 @@
 # 🦗 grasshopper
-[![GoDoc][1]][2] [![MIT licensed][3]][4] [![Created At][5]][6] [![Go Report Card][7]][8]
+[![GoDoc][1]][2] [![MIT licensed][3]][4] [![Created At][5]][6] [![Go Report Card][7]][8] [![Release][9]][10]
 
 [1]: https://godoc.org/github.com/xtaci/grasshopper?status.svg
 [2]: https://pkg.go.dev/github.com/xtaci/grasshopper
@@ -9,6 +9,8 @@
 [6]: https://img.shields.io/github/created-at/xtaci/grasshopper
 [7]: https://goreportcard.com/badge/github.com/xtaci/grasshopper
 [8]: https://goreportcard.com/report/github.com/xtaci/grasshopper
+[9]: https://img.shields.io/github/v/release/xtaci/grasshopper?color=orange
+[10]: https://github.com/xtaci/grasshopper/releases/latest
 
 **Grasshopper** is a UDP packet forwarder that listens for incoming packets and forwards them to a configured destination. It optionally supports cryptography for both incoming and outgoing packets, using different keys and methods.
 
