@@ -61,6 +61,7 @@ var startCmd = &cobra.Command{
 		log.Println("Listening on:", config.Listen)
 		log.Println("Next hops:", config.NextHops)
 		log.Println("Socket buffer:", config.SockBuf)
+		log.Println("Timeout:", config.Timeout)
 
 		// Validate cryptographic methods.
 		if !slices.Contains(allCryptoMethods, config.CI) {
