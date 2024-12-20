@@ -23,13 +23,16 @@
 package cmd
 
 import (
+	"log"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-var config = &Config{}
+var config = &Config{} // global configuration
+var configFile string  // configuration file name
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -68,7 +71,28 @@ func init() {
 	rootCmd.PersistentFlags().StringSliceVarP(&config.NextHops, "nexthops", "n", []string{"127.0.0.1:3000"}, "Servers to randomly forward to")
 	rootCmd.PersistentFlags().StringVar(&config.KI, "ki", "it's a secret", "Secret key to encrypt and decrypt for the last hop(client-side)")
 	rootCmd.PersistentFlags().StringVar(&config.KO, "ko", "it's a secret", "Secret key to encrypt and decrypt for the next hops")
-	rootCmd.PersistentFlags().StringVar(&config.CI, "ci", "3des", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
-	rootCmd.PersistentFlags().StringVar(&config.CO, "co", "3des", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
+	rootCmd.PersistentFlags().StringVar(&config.CI, "ci", "qpp", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
+	rootCmd.PersistentFlags().StringVar(&config.CO, "co", "qpp", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
 	rootCmd.PersistentFlags().DurationVar(&config.Timeout, "timeout", 60*time.Second, "Idle timeout duration for a UDP connection")
+	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "config file name")
+
+	// override configuration from json file
+	cobra.OnInitialize(func() {
+		// json file not specified
+		if configFile == "" {
+			return
+		}
+
+		// read json file instead
+		viper.SetConfigFile(configFile)
+		if err := viper.ReadInConfig(); err != nil {
+			log.Printf("Error reading config file: %s\n", err)
+			os.Exit(-1)
+		}
+
+		if err := viper.Unmarshal(config); err != nil {
+			log.Printf("Error unmarshalling config file: %s\n", err)
+			os.Exit(-1)
+		}
+	})
 }

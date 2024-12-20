@@ -1,0 +1,8 @@
+ci = "3des"
+co = "3des"
+ki = "1234567890abcdef"
+ko = "1234567890abcdef"
+listen = "0.0.0.0:4000"
+timeout = "7s"
+sockbuf = 262144
+nexthops = ["VPS1:1234", "VPS2:1234"]

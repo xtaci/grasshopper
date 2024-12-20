@@ -63,8 +63,9 @@ Available Commands:
   start       Start a listener for UDP packet forwarding
 
 Flags:
-      --ci string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "3des")
-      --co string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "3des")
+      --ci string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "qpp")
+      --co string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "qpp")
+  -c, --config string      config file name
   -h, --help               help for grasshopper
       --ki string          Secret key to encrypt and decrypt for the last hop(client-side) (default "it's a secret")
       --ko string          Secret key to encrypt and decrypt for the next hops (default "it's a secret")
@@ -73,6 +74,7 @@ Flags:
       --sockbuf int        Socket buffer size for the listener (default 1048576)
       --timeout duration   Idle timeout duration for a UDP connection (default 1m0s)
   -t, --toggle             Help message for toggle
+  -v, --version            version for grasshopper
 
 Use "grasshopper [command] --help" for more information about a command.
 ```
