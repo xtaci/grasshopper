@@ -36,7 +36,7 @@ GCFLAGS=""
 # AMD64 
 OSES=(linux freebsd)
 for os in ${OSES[@]}; do
-    env GOOS=$os GOARCH=amd64 go build -mod=vendor -ldflags "$LDFLAGS" -gcflags "$GCFLAGS" -o grasshopper_${os}_amd64${suffix} github.com/xtaci/grasshopper/cmd/grasshopper
+    env CGO_ENABLED=0 GOOS=$os GOARCH=amd64 go build -mod=vendor -ldflags "$LDFLAGS" -gcflags "$GCFLAGS" -o grasshopper_${os}_amd64${suffix} github.com/xtaci/grasshopper/cmd/grasshopper
     if $UPX; then upx -9 grasshopper_${os}_amd64${suffix};fi
     tar -cf grasshopper-${os}-amd64-$VERSION.tar grasshopper_${os}_amd64${suffix}
     ${COMPRESS} -f grasshopper-${os}-amd64-$VERSION.tar
