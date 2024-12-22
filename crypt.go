@@ -262,7 +262,7 @@ func (c *qppCrypt) Encrypt(dst, src []byte) {
 	seed := make([]byte, 8+len(c.key))
 	copy(seed, dst[:8])
 	copy(seed[8:], c.key)
-	prng := c.quantum.CreatePRNG(seed)
+	prng := qpp.FastPRNG(seed)
 	c.quantum.EncryptWithPRNG(dst[8:], prng)
 }
 
@@ -271,7 +271,7 @@ func (c *qppCrypt) Decrypt(dst, src []byte) {
 	seed := make([]byte, 8+len(c.key))
 	copy(seed, dst[:8])
 	copy(seed[8:], c.key)
-	prng := c.quantum.CreatePRNG(seed)
+	prng := qpp.FastPRNG(seed)
 	c.quantum.DecryptWithPRNG(dst[8:], prng)
 }
 

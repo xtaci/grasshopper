@@ -9,7 +9,7 @@ require (
 	github.com/templexxx/xorsimd v0.4.3
 	github.com/tjfoc/gmsm v1.4.1
 	github.com/xtaci/gaio v1.2.24
-	github.com/xtaci/qpp v1.1.17
+	github.com/xtaci/qpp v1.1.18
 	golang.org/x/crypto v0.31.0
 )
 
