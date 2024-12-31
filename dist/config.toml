@@ -1,5 +1,5 @@
-ci = "3des"
-co = "3des"
+ci = "none"
+co = "qpp"
 ki = "1234567890abcdef"
 ko = "1234567890abcdef"
 listen = "0.0.0.0:4000"
