@@ -1,0 +1,27 @@
+#!/bin/sh
+
+# PROVIDE: grasshopper
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+
+# FreeBSD startup script, rename and put this file to
+#   /usr/local/etc/rc.d/grasshopper
+# and, run:
+#   chmod +x /usr/local/etc/rc.d/grasshopper
+#   echo grasshopper_enable="YES" >> /etc/rc.conf
+#   service start grasshopper
+
+. /etc/rc.subr
+
+name="grasshopper" # How the service will be invoked from service
+desc="grasshopper daemon" # the description
+rcvar="grasshopper_enable" # The variable in rc.conf that will allow this service to run
+load_rc_config $name # Loads the config file, if relevant.
+: ${grasshopper_enable:="NO"}
+
+dir="/home/xtaci"   # change this to the directory where grasshopper binaries are.
+command="/usr/sbin/daemon"
+pidfile="/var/run/${name}.pid"
+command_args="-c -f -S -P ${pidfile} -r $dir/grasshopper_freebsd_amd64 start -c $dir/grasshopper.toml"
+
+run_rc_command "$1"
