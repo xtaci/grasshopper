@@ -72,7 +72,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&config.KI, "ki", "it's a secret", "Secret key to encrypt and decrypt for the last hop(client-side)")
 	rootCmd.PersistentFlags().StringVar(&config.KO, "ko", "it's a secret", "Secret key to encrypt and decrypt for the next hops")
 	rootCmd.PersistentFlags().StringVar(&config.CI, "ci", "qpp", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
-	rootCmd.PersistentFlags().StringVar(&config.CO, "co", "qpp", "Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
+	rootCmd.PersistentFlags().StringVar(&config.CO, "co", "qpp", "Cryptography method for outgoing data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none")
 	rootCmd.PersistentFlags().DurationVar(&config.Timeout, "timeout", 60*time.Second, "Idle timeout duration for a UDP connection")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "config file name")
 
