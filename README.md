@@ -64,7 +64,7 @@ Available Commands:
 
 Flags:
       --ci string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "qpp")
-      --co string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "qpp")
+      --co string          Cryptography method for outgoing data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "qpp")
   -c, --config string      config file name
   -h, --help               help for grasshopper
       --ki string          Secret key to encrypt and decrypt for the last hop(client-side) (default "it's a secret")
