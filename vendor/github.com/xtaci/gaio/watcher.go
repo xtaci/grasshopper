@@ -96,7 +96,7 @@ type watcher struct {
 	timer      *time.Timer     // Timer for handling timeouts
 
 	// Garbage collection
-	gc       []uintptr     // List of connections to be garbage collected
+	gc       []net.Conn    // List of connections to be garbage collected
 	gcMutex  sync.Mutex    // Mutex to synchronize access to the gc list
 	gcNotify chan struct{} // Channel to notify the GC processor
 	gcFound  uint32        // number of net.Conn objects found unreachable by runtime
@@ -589,10 +589,13 @@ func (w *watcher) handleGC() {
 	runtime.GC()
 	w.gcMutex.Lock()
 	if len(w.gc) > 0 {
-		for _, ptr := range w.gc {
+		for _, c := range w.gc {
+			ptr := reflect.ValueOf(c).Pointer()
 			if ident, ok := w.connIdents[ptr]; ok {
 				w.releaseConn(ident)
 			}
+			// make sure net.Conn is reachable before releaseConn
+			runtime.KeepAlive(c)
 		}
 		w.gcClosed += uint32(len(w.gc))
 		w.gc = w.gc[:0]
@@ -648,8 +651,7 @@ PENDING:
 				// if not it will never be GC-ed.
 				runtime.SetFinalizer(pcb.conn, func(c net.Conn) {
 					w.gcMutex.Lock()
-					ptr := reflect.ValueOf(c).Pointer()
-					w.gc = append(w.gc, ptr)
+					w.gc = append(w.gc, c)
 					w.gcFound++
 					w.gcMutex.Unlock()
 
