@@ -151,8 +151,8 @@ ncat -u 127.0.0.1 2132
 ./grasshopper start --ci aes --co none -l "CLOUD_PUBLIC_IP:4000" -n "8.8.8.8:53,1.1.1.1:53"
 ```
 
-- `--ci aes`: Decrypts the packet from Level-1 Relayer.
-- `--co none`: Transfers decrypted plaintext DNS query packet to Google DNS.
+- `--ci aes`: Decrypts the iocoming packet from Level-1 Relayer. (`ci` stands for cipher-in)
+- `--co none`: Transfers decrypted plaintext DNS query packet to Google DNS. (`co` stands for cipher-out)
 
 ### Step 2: Start a Level-1 Relayer to the Level-2 Relayer(On your Laptop💻)
 
@@ -160,8 +160,8 @@ ncat -u 127.0.0.1 2132
 ./grasshopper start --ci none --co aes -l "127.0.0.1:4000" -n "CLOUD_PUBLIC_IP:4000"
 ```
 
-- `--ci none`: Since `dig` command queries in plaintext, we do not need to decrypt the packet.
-- `--co aes`: Decrypts and relays packets to Level-2 Relayer
+- `--ci none`: Since `dig` command queries in plaintext, we do not need to decrypt the incoming packet.
+- `--co aes`: Encrypts and relays packets to Level-2 Relayer.
 
 ### Step 3: Query Level-1 Relayer with `dig`(On your Laptop💻)
 
