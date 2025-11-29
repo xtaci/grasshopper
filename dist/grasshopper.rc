@@ -9,7 +9,7 @@
 # and, run:
 #   chmod +x /usr/local/etc/rc.d/grasshopper
 #   echo grasshopper_enable="YES" >> /etc/rc.conf
-#   service start grasshopper
+#   service grasshopper start
 
 . /etc/rc.subr
 
