@@ -12,10 +12,10 @@
 [9]: https://img.shields.io/github/v/release/xtaci/grasshopper?color=orange
 [10]: https://github.com/xtaci/grasshopper/releases/latest
 
-**Grasshopper** is a UDP packet forwarder that listens for incoming packets and forwards them to a configured destination. It optionally supports cryptography for both incoming and outgoing packets, using different keys and methods.
+**Grasshopper** is a UDP packet forwarder that listens for incoming packets and forwards them to a configured destination. It optionally supports encryption for both incoming and outgoing packets, using different keys and cryptographic methods.
 
 ## Architecture
-Grasshopper functions as a chained relay system. Take a chained DNS query For example:
+Grasshopper functions as a chained relay system. For example, consider a chained DNS query:
 ```
                       ┌────────────┐                 ┌───────────────┐                                 
                       │ ENCRYPTED  │                 │ RE-ENCRYPTION │                                 
@@ -42,14 +42,14 @@ Grasshopper functions as a chained relay system. Take a chained DNS query For ex
 
 ## Installation
 
-Install the latest version of Grasshopper using the following command:
+To install the latest version of Grasshopper, use the following command:
 
 ```sh
 go install  github.com/xtaci/grasshopper/cmd/grasshopper@latest     
 ```
 
 ## Parameters
-Grasshopper supports the following parameters:
+Grasshopper supports the following command-line parameters:
 
 ```text
 Grasshopper is a UDP packet forwarder that listens for incoming packets and forwards them to a configured destination. It optionally supports cryptography for both incoming and outgoing packets, using different keys and methods.  Optionally, the listener can be configured to apply cryptogrraphy on both the incoming and outgoing packets, with different keys and methods.
@@ -80,18 +80,20 @@ Use "grasshopper [command] --help" for more information about a command.
 ```
 
 ## Cryptography Support
-- SM4([国密](https://en.wikipedia.org/wiki/SM4_(cipher)))
-- AES([Advanced Encryption Standard](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard)), 128,192,256 bit
-- QPP([Quantum Permutation Pad](https://epjquantumtechnology.springeropen.com/articles/10.1140/epjqt/s40507-022-00145-y))
-- Salsa20(https://en.wikipedia.org/wiki/Salsa20)
-- Blowfish(https://en.wikipedia.org/wiki/Blowfish_(cipher))
-- Twofish(https://en.wikipedia.org/wiki/Twofish)
-- Cast5(https://en.wikipedia.org/wiki/CAST-128)
-- 3DES(https://en.wikipedia.org/wiki/Triple_DES)
-- Tea([Tiny Encryption Algorithm](https://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm))
-- XTea(https://en.wikipedia.org/wiki/XTEA)
+- SM4 ([国密](https://en.wikipedia.org/wiki/SM4_(cipher)))
+- AES ([Advanced Encryption Standard](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard)), 128, 192, 256-bit
+- QPP ([Quantum Permutation Pad](https://epjquantumtechnology.springeropen.com/articles/10.1140/epjqt/s40507-022-00145-y))
+- Salsa20 (https://en.wikipedia.org/wiki/Salsa20)
+- Blowfish (https://en.wikipedia.org/wiki/Blowfish_(cipher))
+- Twofish (https://en.wikipedia.org/wiki/Twofish)
+- Cast5 (https://en.wikipedia.org/wiki/CAST-128)
+- 3DES (https://en.wikipedia.org/wiki/Triple_DES)
+- Tea ([Tiny Encryption Algorithm](https://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm))
+- XTea (https://en.wikipedia.org/wiki/XTEA)
 
-## Cases-Ⅰ Secure Echo
+## Use Cases
+
+### Case I: Secure Echo
 
 ### Step 1: Start a UDP Echo Server
 
@@ -100,37 +102,37 @@ Use `ncat` to start a UDP echo server on port 5000:
 ```sh
 ncat -e /bin/cat -k -u -l 5000
 ```
-### Step 2: Start a Level-2 Relayer to the Echo Server
+### Step 2: Start a Level-2 Relay to the Echo Server
 
-Run the following command to start a relayer:
+Run the following command to start a relay:
 
 ```sh
 ./grasshopper start --ci aes --co none -l "127.0.0.1:4001" -n "127.0.0.1:5000"
 ```
 
-- `--ci aes`: Applies cryptography on incoming packets.
-- `--co none`: Transfers plaintext to the `ncat` echo server.
+- `--ci aes`: Applies encryption to incoming packets.
+- `--co none`: Forwards plaintext to the `ncat` echo server.
 
-### Step 3: Start a Level-1 Relayer to the Level-2 Relayer
+### Step 3: Start a Level-1 Relay to the Level-2 Relay
 
-Run the following command to start another relayer:
+Run the following command to start another relay:
 
 ```sh
 ./grasshopper start --ci none --co aes -l "127.0.0.1:4000" -n "127.0.0.1:4001"
 ```
 
-- `--ci none`: No cryptography is applied to incoming packets.
-- `--co aes`: Encrypts and relays packets to the next hop.
+- `--ci none`: No encryption is applied to incoming packets.
+- `--co aes`: Encrypts packets and forwards them to the next hop.
 
 ### Step 4: Start a Demo Client
 
-Use `ncat` to send UDP packets and interact with the relayer chain:
+Use `ncat` to send UDP packets and interact with the relay chain:
 
 ```sh
 ncat -u 127.0.0.1 2132
 ```
 
-## Case-Ⅱ Secure DNS query(random selection)
+### Case II: Secure DNS Query (Random Selection)
 ```
 ┌──────────── YOUR─LAPTOP ──────────────┐           ┌────────── CLOUD─SERVER ───────────┐
 │                                       │           │                                   │
@@ -145,25 +147,25 @@ ncat -u 127.0.0.1 2132
 │                                       │           │                                   │
 └───────────────────────────────────────┘           └───────────────────────────────────┘
 ```
-### Step 1: Start a Level-2 Relayer to the Google DNS Server(On your Cloud Server🖥️)
+### Step 1: Start a Level-2 Relay to the DNS Server (On Your Cloud Server 🖥️)
 
 ```sh
 ./grasshopper start --ci aes --co none -l "CLOUD_PUBLIC_IP:4000" -n "8.8.8.8:53,1.1.1.1:53"
 ```
 
-- `--ci aes`: Decrypts the iocoming packet from Level-1 Relayer. (`ci` stands for cipher-in)
-- `--co none`: Transfers decrypted plaintext DNS query packet to Google DNS. (`co` stands for cipher-out)
+- `--ci aes`: Decrypts incoming packets from the Level-1 relay. (`ci` stands for cipher-in)
+- `--co none`: Forwards decrypted plaintext DNS query packets to the DNS server. (`co` stands for cipher-out)
 
-### Step 2: Start a Level-1 Relayer to the Level-2 Relayer(On your Laptop💻)
+### Step 2: Start a Level-1 Relay to the Level-2 Relay (On Your Laptop 💻)
 
 ```sh
 ./grasshopper start --ci none --co aes -l "127.0.0.1:4000" -n "CLOUD_PUBLIC_IP:4000"
 ```
 
-- `--ci none`: Since `dig` command queries in plaintext, we do not need to decrypt the incoming packet.
-- `--co aes`: Encrypts and relays packets to Level-2 Relayer.
+- `--ci none`: Since the `dig` command sends queries in plaintext, no decryption is needed for incoming packets.
+- `--co aes`: Encrypts and forwards packets to the Level-2 relay.
 
-### Step 3: Query Level-1 Relayer with `dig`(On your Laptop💻)
+### Step 3: Query the Level-1 Relay with `dig` (On Your Laptop 💻)
 
 ```sh
 dig google.com @127.0.0.1 -p 4000
