@@ -24,6 +24,7 @@ package cmd
 
 import (
 	"crypto/sha1"
+	"fmt"
 	"log"
 	"slices"
 
@@ -75,9 +76,15 @@ var startCmd = &cobra.Command{
 		// Derive cryptographic keys using PBKDF2.
 		log.Printf("Initiating Cryptography (In: %v)  <---> (Out: %v)", config.CI, config.CO)
 		passIn := pbkdf2.Key([]byte(config.KI), []byte(SALT), ITERATIONS, KEYLEN, sha1.New)
-		crypterIn := newCrypt(passIn, config.CI)
+		crypterIn, err := newCrypt(passIn, config.CI)
+		if err != nil {
+			log.Fatalf("Failed to initialize inbound crypto (%s): %v", config.CI, err)
+		}
 		passOut := pbkdf2.Key([]byte(config.KO), []byte(SALT), ITERATIONS, KEYLEN, sha1.New)
-		crypterOut := newCrypt(passOut, config.CO)
+		crypterOut, err := newCrypt(passOut, config.CO)
+		if err != nil {
+			log.Fatalf("Failed to initialize outbound crypto (%s): %v", config.CO, err)
+		}
 		log.Println("Cryptography initialized")
 
 		// Initialize and start the UDP listener.
@@ -97,37 +104,37 @@ var startCmd = &cobra.Command{
 // - method: The cryptographic method to use.
 // Returns:
 // - A BlockCrypt instance implementing the selected cryptographic method.
-func newCrypt(pass []byte, method string) grasshopper.BlockCrypt {
-	var block grasshopper.BlockCrypt
+func newCrypt(pass []byte, method string) (grasshopper.BlockCrypt, error) {
 	switch method {
 	case "none":
-		block = nil
+		return nil, nil
 	case "sm4":
-		block, _ = grasshopper.NewSM4BlockCrypt(pass[:16])
+		return grasshopper.NewSM4BlockCrypt(pass[:16])
 	case "tea":
-		block, _ = grasshopper.NewTEABlockCrypt(pass[:16])
+		return grasshopper.NewTEABlockCrypt(pass[:16])
 	case "aes":
-		block, _ = grasshopper.NewAESBlockCrypt(pass)
+		return grasshopper.NewAESBlockCrypt(pass)
 	case "aes-128":
-		block, _ = grasshopper.NewAESBlockCrypt(pass[:16])
+		return grasshopper.NewAESBlockCrypt(pass[:16])
 	case "aes-192":
-		block, _ = grasshopper.NewAESBlockCrypt(pass[:24])
+		return grasshopper.NewAESBlockCrypt(pass[:24])
 	case "blowfish":
-		block, _ = grasshopper.NewBlowfishBlockCrypt(pass)
+		return grasshopper.NewBlowfishBlockCrypt(pass)
 	case "twofish":
-		block, _ = grasshopper.NewTwofishBlockCrypt(pass)
+		return grasshopper.NewTwofishBlockCrypt(pass)
 	case "cast5":
-		block, _ = grasshopper.NewCast5BlockCrypt(pass[:16])
+		return grasshopper.NewCast5BlockCrypt(pass[:16])
 	case "3des":
-		block, _ = grasshopper.NewTripleDESBlockCrypt(pass[:24])
+		return grasshopper.NewTripleDESBlockCrypt(pass[:24])
 	case "xtea":
-		block, _ = grasshopper.NewXTEABlockCrypt(pass[:16])
+		return grasshopper.NewXTEABlockCrypt(pass[:16])
 	case "salsa20":
-		block, _ = grasshopper.NewSalsa20BlockCrypt(pass)
+		return grasshopper.NewSalsa20BlockCrypt(pass)
 	case "qpp":
-		block, _ = grasshopper.NewQPPCrypt(pass)
+		return grasshopper.NewQPPCrypt(pass)
+	default:
+		return nil, fmt.Errorf("unsupported crypto method %q", method)
 	}
-	return block
 }
 
 func init() {
