@@ -10,9 +10,9 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/templexxx/xorsimd v0.4.3
 	github.com/tjfoc/gmsm v1.4.1
-	github.com/xtaci/gaio v1.2.26
-	github.com/xtaci/qpp v1.1.18
-	golang.org/x/crypto v0.45.0
+	github.com/xtaci/gaio v1.2.28
+	github.com/xtaci/qpp v1.1.21
+	golang.org/x/crypto v0.46.0
 )
 
 require (
@@ -33,8 +33,8 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
