@@ -14,10 +14,10 @@
 
 [English](README.md) | [中文](README_zh.md)
 
-**Grasshopper** is a UDP packet forwarder that listens for incoming packets and forwards them to a configured destination. It optionally supports encryption for both incoming and outgoing packets, using different keys and cryptographic methods.
+**Grasshopper** 是一个 UDP 数据包转发器，它监听传入的数据包并将其转发到配置的目标地址。它支持对传入和传出的数据包进行加密，并且可以使用不同的密钥和加密方法。
 
-## Architecture
-Grasshopper functions as a chained relay system. For example, consider a chained DNS query:
+## 架构
+Grasshopper 作为一个链式中继系统运行。例如，考虑一个链式 DNS 查询：
 ```
                       ┌────────────┐                 ┌───────────────┐                                 
                       │ ENCRYPTED  │                 │ RE-ENCRYPTION │                                 
@@ -42,46 +42,46 @@ Grasshopper functions as a chained relay system. For example, consider a chained
                   └───────────┘                                                                        
 ```
 
-## Installation
+## 安装
 
-To install the latest version of Grasshopper, use the following command:
+要安装最新版本的 Grasshopper，请使用以下命令：
 
 ```sh
 go install  github.com/xtaci/grasshopper/cmd/grasshopper@latest     
 ```
 
-## Parameters
-Grasshopper supports the following command-line parameters:
+## 参数
+Grasshopper 支持以下命令行参数：
 
 ```text
-Grasshopper is a UDP packet forwarder that listens for incoming packets and forwards them to a configured destination. It optionally supports cryptography for both incoming and outgoing packets, using different keys and methods.  Optionally, the listener can be configured to apply cryptogrraphy on both the incoming and outgoing packets, with different keys and methods.
+Grasshopper 是一个 UDP 数据包转发器，它监听传入的数据包并将其转发到配置的目标地址。它支持对传入和传出的数据包进行加密，并且可以使用不同的密钥和加密方法。
 
-Usage:
+用法:
   grasshopper [command]
 
-Available Commands:
-  completion  Generate the autocompletion script for the specified shell
-  help        Help about any command
-  start       Start a listener for UDP packet forwarding
+可用命令:
+  completion  生成指定 shell 的自动补全脚本
+  help        关于任何命令的帮助信息
+  start       启动 UDP 数据包转发监听器
 
-Flags:
-      --ci string          Cryptography method for incoming data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "qpp")
-      --co string          Cryptography method for outgoing data. Available options: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (default "qpp")
-  -c, --config string      config file name
-  -h, --help               help for grasshopper
-      --ki string          Secret key to encrypt and decrypt for the last hop(client-side) (default "it's a secret")
-      --ko string          Secret key to encrypt and decrypt for the next hops (default "it's a secret")
-  -l, --listen string      Listener address, eg: "IP:1234" (default ":1234")
-  -n, --nexthops strings   Servers to randomly forward to (default [127.0.0.1:3000])
-      --sockbuf int        Socket buffer size for the listener (default 1048576)
-      --timeout duration   Idle timeout duration for a UDP connection (default 1m0s)
-  -t, --toggle             Help message for toggle
-  -v, --version            version for grasshopper
+标志:
+      --ci string          传入数据的加密方法。可用选项: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (默认 "qpp")
+      --co string          传出数据的加密方法。可用选项: aes, aes-128, aes-192, qpp, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, sm4, none (默认 "qpp")
+  -c, --config string      配置文件名
+  -h, --help               grasshopper 的帮助信息
+      --ki string          用于最后一跳（客户端侧）加密和解密的密钥 (默认 "it's a secret")
+      --ko string          用于下一跳加密和解密的密钥 (默认 "it's a secret")
+  -l, --listen string      监听地址，例如: "IP:1234" (默认 ":1234")
+  -n, --nexthops strings   随机转发到的服务器列表 (默认 [127.0.0.1:3000])
+      --sockbuf int        监听器的套接字缓冲区大小 (默认 1048576)
+      --timeout duration   UDP 连接的空闲超时时间 (默认 1m0s)
+  -t, --toggle             切换帮助信息
+  -v, --version            grasshopper 的版本信息
 
-Use "grasshopper [command] --help" for more information about a command.
+使用 "grasshopper [command] --help" 获取有关命令的更多信息。
 ```
 
-## Cryptography Support
+## 加密算法支持
 - SM4 ([国密](https://en.wikipedia.org/wiki/SM4_(cipher)))
 - AES ([Advanced Encryption Standard](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard)), 128, 192, 256-bit
 - QPP ([Quantum Permutation Pad](https://epjquantumtechnology.springeropen.com/articles/10.1140/epjqt/s40507-022-00145-y))
@@ -93,48 +93,48 @@ Use "grasshopper [command] --help" for more information about a command.
 - Tea ([Tiny Encryption Algorithm](https://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm))
 - XTea (https://en.wikipedia.org/wiki/XTEA)
 
-## Use Cases
+## 使用案例
 
-### Case I: Secure Echo
+### 案例 I: 安全回显 (Secure Echo)
 
-### Step 1: Start a UDP Echo Server
+### 步骤 1: 启动 UDP Echo 服务器
 
-Use `ncat` to start a UDP echo server on port 5000:
+使用 `ncat` 在端口 5000 上启动一个 UDP echo 服务器：
 
 ```sh
 ncat -e /bin/cat -k -u -l 5000
 ```
-### Step 2: Start a Level-2 Relay to the Echo Server
+### 步骤 2: 启动到 Echo 服务器的二级中继
 
-Run the following command to start a relay:
+运行以下命令启动中继：
 
 ```sh
 ./grasshopper start --ci aes --co none -l "127.0.0.1:4001" -n "127.0.0.1:5000"
 ```
 
-- `--ci aes`: Applies encryption to incoming packets.
-- `--co none`: Forwards plaintext to the `ncat` echo server.
+- `--ci aes`: 对传入的数据包应用加密。
+- `--co none`: 将明文转发到 `ncat` echo 服务器。
 
-### Step 3: Start a Level-1 Relay to the Level-2 Relay
+### 步骤 3: 启动到二级中继的一级中继
 
-Run the following command to start another relay:
+运行以下命令启动另一个中继：
 
 ```sh
 ./grasshopper start --ci none --co aes -l "127.0.0.1:4000" -n "127.0.0.1:4001"
 ```
 
-- `--ci none`: No encryption is applied to incoming packets.
-- `--co aes`: Encrypts packets and forwards them to the next hop.
+- `--ci none`: 对传入的数据包不应用加密。
+- `--co aes`: 加密数据包并将其转发到下一跳。
 
-### Step 4: Start a Demo Client
+### 步骤 4: 启动演示客户端
 
-Use `ncat` to send UDP packets and interact with the relay chain:
+使用 `ncat` 发送 UDP 数据包并与中继链交互：
 
 ```sh
 ncat -u 127.0.0.1 2132
 ```
 
-### Case II: Secure DNS Query (Random Selection)
+### 案例 II: 安全 DNS 查询 (随机选择)
 ```
 ┌──────────── YOUR─LAPTOP ──────────────┐           ┌────────── CLOUD─SERVER ───────────┐
 │                                       │           │                                   │
@@ -149,25 +149,25 @@ ncat -u 127.0.0.1 2132
 │                                       │           │                                   │
 └───────────────────────────────────────┘           └───────────────────────────────────┘
 ```
-### Step 1: Start a Level-2 Relay to the DNS Server (On Your Cloud Server 🖥️)
+### 步骤 1: 启动到 DNS 服务器的二级中继 (在你的云服务器上 🖥️)
 
 ```sh
 ./grasshopper start --ci aes --co none -l "CLOUD_PUBLIC_IP:4000" -n "8.8.8.8:53,1.1.1.1:53"
 ```
 
-- `--ci aes`: Decrypts incoming packets from the Level-1 relay. (`ci` stands for cipher-in)
-- `--co none`: Forwards decrypted plaintext DNS query packets to the DNS server. (`co` stands for cipher-out)
+- `--ci aes`: 解密来自一级中继的传入数据包。(`ci` 代表 cipher-in，即传入加密)
+- `--co none`: 将解密后的明文 DNS 查询数据包转发到 DNS 服务器。(`co` 代表 cipher-out，即传出加密)
 
-### Step 2: Start a Level-1 Relay to the Level-2 Relay (On Your Laptop 💻)
+### 步骤 2: 启动到二级中继的一级中继 (在你的笔记本电脑上 💻)
 
 ```sh
 ./grasshopper start --ci none --co aes -l "127.0.0.1:4000" -n "CLOUD_PUBLIC_IP:4000"
 ```
 
-- `--ci none`: Since the `dig` command sends queries in plaintext, no decryption is needed for incoming packets.
-- `--co aes`: Encrypts and forwards packets to the Level-2 relay.
+- `--ci none`: 由于 `dig` 命令以明文发送查询，因此不需要对传入数据包进行解密。
+- `--co aes`: 加密数据包并将其转发到二级中继。
 
-### Step 3: Query the Level-1 Relay with `dig` (On Your Laptop 💻)
+### 步骤 3: 使用 `dig` 查询一级中继 (在你的笔记本电脑上 💻)
 
 ```sh
 dig google.com @127.0.0.1 -p 4000
