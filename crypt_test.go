@@ -124,7 +124,7 @@ func TestQPP(t *testing.T) {
 }
 
 func cryptTest(t *testing.T, bc BlockCrypt) {
-	for i := 0; i < 128; i++ {
+	for range 128 {
 		// get a random number between 16 and mtuLimit
 		size := mrand.Intn(mtuLimit-16) + 16
 
@@ -258,7 +258,7 @@ func benchCrypt(b *testing.B, bc BlockCrypt) {
 func BenchmarkCRC32(b *testing.B) {
 	content := make([]byte, 1024)
 	b.SetBytes(int64(len(content)))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		crc32.ChecksumIEEE(content)
 	}
 }
@@ -267,7 +267,7 @@ func BenchmarkCsprngSystem(b *testing.B) {
 	data := make([]byte, md5.Size)
 	b.SetBytes(int64(len(data)))
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		io.ReadFull(rand.Reader, data)
 	}
 }
@@ -276,7 +276,7 @@ func BenchmarkCsprngMD5(b *testing.B) {
 	var data [md5.Size]byte
 	b.SetBytes(md5.Size)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		data = md5.Sum(data[:])
 	}
 }
@@ -284,7 +284,7 @@ func BenchmarkCsprngSHA1(b *testing.B) {
 	var data [sha1.Size]byte
 	b.SetBytes(sha1.Size)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		data = sha1.Sum(data[:])
 	}
 }

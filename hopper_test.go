@@ -133,7 +133,7 @@ func TestMultiHoppers(t *testing.T) {
 
 	// create 10 LEVEL-2 hops
 	ki, ko, ci, co := "123456", "", "aes", "none"
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		hop1 := newHopper("localhost:0", []string{conn.LocalAddr().String()}, ki, ko, ci, co)
 		t.Log("Hop1:", hop1.conn.LocalAddr().String(), "->", conn.LocalAddr().String(), "ki:", ki, "ko:", ko, "ci:", ci, "co:", co)
 		nextHops = append(nextHops, hop1.conn.LocalAddr().String())
@@ -147,7 +147,7 @@ func TestMultiHoppers(t *testing.T) {
 	t.Log("Hop2:", hop2.conn.LocalAddr().String(), "->", nextHops, "ki:", ki, "ko:", ko, "ci:", ci, "co:", co)
 	go hop2.Start()
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-time.After(time.Millisecond * 100)
 		clientConn, err := net.Dial("udp", hop2.conn.LocalAddr().String())
 		if err != nil {
@@ -174,7 +174,7 @@ func testEcho(t *testing.T, clientConn net.Conn) {
 	sucess := 0
 	failed := 0
 	timeout := 0
-	for i := 0; i < total; i++ {
+	for i := range total {
 		msg := randStringBytesRmndr(rand.Intn(mtuLimit - headerSize))
 		_, err := clientConn.Write([]byte(msg))
 		if err != nil {
