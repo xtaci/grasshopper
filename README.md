@@ -97,6 +97,17 @@ Use "grasshopper [command] --help" for more information about a command.
 
 ### Case I: Secure Echo
 
+Flow at a glance:
+
+```
+Client (ncat @127.0.0.1:4000)
+  │ plaintext
+  ▼
+Level-1 relay (ci=none, co=aes) ── AES cipher ──► Level-2 relay (ci=aes, co=none) ──► UDP echo @127.0.0.1:5000
+```
+
+What this means: your terminal only talks to `127.0.0.1:4000`; everything beyond that hop is encrypted on the way out and decrypted before it hits the echo server.
+
 ### Step 1: Start a UDP Echo Server
 
 Use `ncat` to start a UDP echo server on port 5000:
@@ -131,10 +142,17 @@ Run the following command to start another relay:
 Use `ncat` to send UDP packets and interact with the relay chain:
 
 ```sh
-ncat -u 127.0.0.1 2132
+ncat -u 127.0.0.1 4000
 ```
 
 ### Case II: Secure DNS Query (Random Selection)
+Flow at a glance (two relays, random upstream resolver):
+
+```
+Laptop dig ──► Level-1 (ci=none, co=aes) ── AES cipher over WAN ──► Level-2 (ci=aes, co=none) ──► DNS pool {8.8.8.8, 1.1.1.1}
+```
+
+The laptop only sees `127.0.0.1:4000`; the WAN hop stays encrypted, and Level-2 randomly picks a resolver from the pool for each request.
 ```
 ┌──────────── YOUR─LAPTOP ──────────────┐           ┌────────── CLOUD─SERVER ───────────┐
 │                                       │           │                                   │
