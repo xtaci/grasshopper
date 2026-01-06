@@ -22,7 +22,7 @@ Grasshopper functions as a chained relay system. For example, consider a chained
                               ┌────────────┐              ┌───────────────┐                                  
                               │ ENCRYPTED  │              │ RE-ENCRYPTION │                                  
                               └─────┬──────┘              │ AES ───► 3DES │                                  
-                                    │                     └──▼───┬────────┘                                  
+                                    │                     └──────┬────────┘                                  
                                     │                            │                                           
                                     │                            │                                           
                                     │                            │                                           
