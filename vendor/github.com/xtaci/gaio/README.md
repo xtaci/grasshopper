@@ -16,7 +16,7 @@
 <img src="assets/logo.png" alt="gaio" height="300px" /> 
 
 ## Introduction
-[中文介绍](https://zhuanlan.zhihu.com/p/102890337)
+[中文文档](README_zh.md) | [中文介绍(知乎)](https://zhuanlan.zhihu.com/p/102890337)
 
 In a typical Go network program, you accept a connection with `conn := lis.Accept()`, then spawn a goroutine to handle incoming data using `go func(net.Conn)`. Next, you allocate a buffer with `buf := make([]byte, 4096)` and wait for data with `conn.Read(buf)`.
 
@@ -27,6 +27,8 @@ By eliminating the one-goroutine-per-connection model through Edge-Triggered I/O
 The gaio library implements the proactor pattern, effectively balancing memory constraints with performance requirements.
 
 ## How It Works
+
+![alt text](assets/gaio.jpg)
 
 The `dup` function is used to copy the file descriptor from `net.Conn`:
 
@@ -347,7 +349,3 @@ The `gaio` source code is available under the MIT [License](/LICENSE).
 * https://idea.popcount.org/2017-02-20-epoll-is-fundamentally-broken-12/ -- epoll is fundamentally broken
 * https://en.wikipedia.org/wiki/Transmission_Control_Protocol#Flow_control -- TCP Flow Control 
 * http://www.idc-online.com/technical_references/pdfs/data_communications/Congestion_Control.pdf -- Back-pressure
-
-## Status
-
-Stable

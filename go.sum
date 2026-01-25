@@ -91,6 +91,8 @@ github.com/tjfoc/gmsm v1.4.1 h1:aMe1GlZb+0bLjn+cKTPEvvn9oUEBlJitaZiiBwsbgho=
 github.com/tjfoc/gmsm v1.4.1/go.mod h1:j4INPkHWMrhJb38G+J6W4Tw0AbuN8Thu3PbdVYhVcTE=
 github.com/xtaci/gaio v1.2.28 h1:0KSvgt2piS1UDg57rGiTtQ4nyIXPfPnIhkQSXiGqK1g=
 github.com/xtaci/gaio v1.2.28/go.mod h1:3jAZo6WyD8rtO6bj/h3atSsGjQbm5a4zbAhJ3JotVbU=
+github.com/xtaci/gaio v1.2.29 h1:xO78kI7Tm1W2RTWstKFEmEdd7MSME7Nha6yBFwhzyZA=
+github.com/xtaci/gaio v1.2.29/go.mod h1:zk3cOZdrgziRNPkgdBzKH+WKDC7aZvT5w0Zzfqdj/oc=
 github.com/xtaci/qpp v1.1.21 h1:jiGXDd9HPEwAsEFIvViEavSDzxGfAeLtArgsEgDC/04=
 github.com/xtaci/qpp v1.1.21/go.mod h1:DI0dcoZ+qu4ze5C0hkt8grLfTVqBiZ3hXTimGyg5TTI=
 go.uber.org/atomic v1.9.0 h1:ECmE8Bn/WFTYwEW/bpKD3M8VtR/zQVbavAoalC1PYyE=
@@ -125,6 +127,8 @@ golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.28.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
 golang.org/x/sys v0.39.0 h1:CvCKL8MeisomCi6qNZ+wbb0DN9E5AATixKsvNtMoMFk=
 golang.org/x/sys v0.39.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
+golang.org/x/sys v0.40.0 h1:DBZZqJ2Rkml6QMQsZywtnjnnGvHza6BTfYFWY9kjEWQ=
+golang.org/x/sys v0.40.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
 golang.org/x/text v0.32.0 h1:ZD01bjUt1FQ9WJ0ClOL5vxgxOI/sVCNgX1YtKwcY0mU=
