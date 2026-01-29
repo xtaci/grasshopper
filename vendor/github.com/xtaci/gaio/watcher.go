@@ -27,27 +27,22 @@ import (
 	"container/list"
 	"io"
 	"net"
-	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 var (
-	aiocbPool  sync.Pool
-	fdDescPool sync.Pool
+	aiocbPool = sync.Pool{
+		New: func() any { return new(aiocb) },
+	}
+	fdDescPool = sync.Pool{
+		New: func() any { return new(fdDesc) },
+	}
 )
-
-func init() {
-	aiocbPool.New = func() interface{} {
-		return new(aiocb)
-	}
-	fdDescPool.New = func() interface{} {
-		return new(fdDesc)
-	}
-}
 
 // fdDesc holds all data structures associated with a file descriptor (fd).
 // It maintains lists of pending read and write requests, as well as a pointer
@@ -63,14 +58,14 @@ type fdDesc struct {
 // maintains internal buffers, and interacts with various channels for signaling
 // and communication.
 type watcher struct {
-	// poll fd
-	pfd *poller // Poller for managing file descriptor events
+	// Poller for managing file descriptor events
+	pfd *poller
 
 	// netpoll signals
 	chSignal chan Signal
 
 	// Lists for managing pending asynchronous I/O operations
-	// pendingXXX will be used interchangeably, like back buffer
+	// pendingXXX are swapped like back buffers
 	// pendingCreate <--> pendingProcessing
 	chPendingNotify   chan struct{} // Channel for notifications about new I/O requests
 	pendingCreate     []*aiocb      // List of I/O operations waiting to be processed
@@ -79,7 +74,7 @@ type watcher struct {
 	pendingMutex sync.Mutex // Mutex to synchronize access to pending operations
 	recycles     []*aiocb   // List of completed I/O operations ready for reuse
 
-	// IO-completion events to user
+	// I/O completion events for the user
 	chResults chan *aiocb
 
 	// Internal buffers for managing read operations
@@ -88,10 +83,13 @@ type watcher struct {
 	swapBufferMiddle []byte        // Middle buffer for reading
 	swapBufferBack   []byte        // Back buffer for reading
 	bufferOffset     int           // Offset for the currently used buffer
-	shouldSwap       chan struct{} // Atomic flag indicating if a buffer swap is needed
+	shouldSwap       chan struct{} // Notification channel indicating a buffer swap is needed
 
 	// Channel for setting CPU affinity in the watcher loop
 	chCPUID chan int32
+
+	// Pre-allocated results slice to reduce allocations in WaitIO
+	results []OpResult
 
 	// Maps and structures for managing file descriptors and connections
 	descs      map[int]*fdDesc // Map of file descriptors to their associated fdDesc
@@ -103,8 +101,8 @@ type watcher struct {
 	gc       []net.Conn    // List of connections to be garbage collected
 	gcMutex  sync.Mutex    // Mutex to synchronize access to the gc list
 	gcNotify chan struct{} // Channel to notify the GC processor
-	gcFound  uint32        // number of net.Conn objects found unreachable by runtime
-	gcClosed uint32        // record number of objects closed successfully
+	gcFound  uint32        // Number of net.Conn objects found unreachable by the runtime
+	gcClosed uint32        // Number of objects closed successfully
 
 	// Shutdown and cleanup
 	die     chan struct{} // Channel for signaling shutdown
@@ -148,6 +146,7 @@ func NewWatcherSize(bufsize int) (*Watcher, error) {
 	w.pendingCreate = make([]*aiocb, 0, 128)
 	w.pendingProcessing = make([]*aiocb, 0, 128)
 	w.recycles = make([]*aiocb, 0, 128)
+	w.results = make([]OpResult, 0, 128)
 
 	// Initialize data structures for managing file descriptors and connections
 	// Pre-allocate maps with reasonable initial capacity for C10K scenarios
@@ -179,13 +178,13 @@ func NewWatcherSize(bufsize int) (*Watcher, error) {
 	return wrapper, nil
 }
 
-// Set Poller Affinity for Epoll/Kqueue
+// Set poller affinity for epoll/kqueue.
 func (w *watcher) SetPollerAffinity(cpuid int) error {
 	if cpuid < 0 || cpuid >= runtime.NumCPU() {
 		return ErrCPUID
 	}
 
-	// store and wakeup
+	// Store and wake up the poller.
 	atomic.StoreInt32(&w.pfd.cpuid, int32(cpuid))
 	if err := w.pfd.wakeup(); err != nil {
 		// rollback so the next successful call can retry
@@ -195,13 +194,13 @@ func (w *watcher) SetPollerAffinity(cpuid int) error {
 	return nil
 }
 
-// Set Loop Affinity for syscall.Read/syscall.Write
+// Set loop affinity for syscall.Read/syscall.Write.
 func (w *watcher) SetLoopAffinity(cpuid int) error {
 	if cpuid < 0 || cpuid >= runtime.NumCPU() {
 		return ErrCPUID
 	}
 
-	// sendchan
+	// Send the cpuid to the loop.
 	select {
 	case w.chCPUID <- int32(cpuid):
 	case <-w.die:
@@ -210,7 +209,7 @@ func (w *watcher) SetLoopAffinity(cpuid int) error {
 	return nil
 }
 
-// Close stops monitoring on events for all connections
+// Close stops monitoring events for all connections.
 func (w *watcher) Close() (err error) {
 	w.dieOnce.Do(func() {
 		close(w.die)
@@ -219,7 +218,7 @@ func (w *watcher) Close() (err error) {
 	return err
 }
 
-// notify new operations pending
+// Notify that new operations are pending.
 func (w *watcher) notifyPending() {
 	select {
 	case w.chPendingNotify <- struct{}{}:
@@ -227,7 +226,7 @@ func (w *watcher) notifyPending() {
 	}
 }
 
-// notify shouldSwap
+// Notify that a buffer swap should occur.
 func (w *watcher) notifyShouldSwap() {
 	select {
 	case w.shouldSwap <- struct{}{}:
@@ -243,26 +242,37 @@ func (w *watcher) notifyShouldSwap() {
 // 2. It waits for completion notifications from the chResults channel and accumulates results.
 // 3. It ensures that the buffer in OpResult is not overwritten until the next call to WaitIO.
 func (w *watcher) WaitIO() (r []OpResult, err error) {
-	// recycle previous aiocb
-	for k := range w.recycles {
-		aiocbPool.Put(w.recycles[k])
-		// avoid memory leak
-		w.recycles[k] = nil
+	// Recycle previous aiocb objects using batch put for better performance
+	for _, cb := range w.recycles {
+		aiocbPool.Put(cb)
 	}
+	// Clear the slice to avoid memory leaks while keeping capacity
+	clear(w.recycles)
 	w.recycles = w.recycles[:0]
+
+	// Clear previous results to allow GC of Conn objects
+	// This is important because the underlying array may still hold references
+	for i := range w.results {
+		w.results[i].Conn = nil
+		w.results[i].Context = nil
+		w.results[i].Buffer = nil
+	}
+	w.results = w.results[:0]
 
 	for {
 		select {
 		case pcb := <-w.chResults:
-			r = append(r, OpResult{Operation: pcb.op, Conn: pcb.conn, IsSwapBuffer: pcb.useSwap, Buffer: pcb.buffer, Size: pcb.size, Error: pcb.err, Context: pcb.ctx})
-			// avoid memory leak
+			w.results = append(w.results, OpResult{Operation: pcb.op, Conn: pcb.conn, IsSwapBuffer: pcb.useSwap, Buffer: pcb.buffer, Size: pcb.size, Error: pcb.err, Context: pcb.ctx})
+			// Clear references to allow GC of connection objects
 			pcb.ctx = nil
+			pcb.conn = nil
 			w.recycles = append(w.recycles, pcb)
 			for len(w.chResults) > 0 {
 				pcb := <-w.chResults
-				r = append(r, OpResult{Operation: pcb.op, Conn: pcb.conn, IsSwapBuffer: pcb.useSwap, Buffer: pcb.buffer, Size: pcb.size, Error: pcb.err, Context: pcb.ctx})
-				// avoid memory leak
+				w.results = append(w.results, OpResult{Operation: pcb.op, Conn: pcb.conn, IsSwapBuffer: pcb.useSwap, Buffer: pcb.buffer, Size: pcb.size, Error: pcb.err, Context: pcb.ctx})
+				// Clear references to allow GC of connection objects
 				pcb.ctx = nil
+				pcb.conn = nil
 				w.recycles = append(w.recycles, pcb)
 			}
 
@@ -293,7 +303,7 @@ func (w *watcher) WaitIO() (r []OpResult, err error) {
 			// notify buffer swapping.
 			w.notifyShouldSwap()
 
-			return r, nil
+			return w.results, nil
 		case <-w.die:
 			return nil, ErrWatcherClosed
 		}
@@ -302,20 +312,20 @@ func (w *watcher) WaitIO() (r []OpResult, err error) {
 
 // Read submits an asynchronous read request on 'conn' with context 'ctx' and optional buffer 'buf'.
 // If 'buf' is nil, an internal buffer is used. 'ctx' is a user-defined value passed unchanged.
-func (w *watcher) Read(ctx interface{}, conn net.Conn, buf []byte) error {
+func (w *watcher) Read(ctx any, conn net.Conn, buf []byte) error {
 	return w.aioCreate(ctx, OpRead, conn, buf, zeroTime, false)
 }
 
 // ReadTimeout submits an asynchronous read request on 'conn' with context 'ctx' and buffer 'buf',
 // expecting to read some bytes before 'deadline'. 'ctx' is a user-defined value passed unchanged.
-func (w *watcher) ReadTimeout(ctx interface{}, conn net.Conn, buf []byte, deadline time.Time) error {
+func (w *watcher) ReadTimeout(ctx any, conn net.Conn, buf []byte, deadline time.Time) error {
 	return w.aioCreate(ctx, OpRead, conn, buf, deadline, false)
 }
 
 // ReadFull submits an asynchronous read request on 'conn' with context 'ctx' and buffer 'buf',
 // expecting to fill the buffer before 'deadline'. 'ctx' is a user-defined value passed unchanged.
 // 'buf' must not be nil for ReadFull.
-func (w *watcher) ReadFull(ctx interface{}, conn net.Conn, buf []byte, deadline time.Time) error {
+func (w *watcher) ReadFull(ctx any, conn net.Conn, buf []byte, deadline time.Time) error {
 	if len(buf) == 0 {
 		return ErrEmptyBuffer
 	}
@@ -324,7 +334,7 @@ func (w *watcher) ReadFull(ctx interface{}, conn net.Conn, buf []byte, deadline 
 
 // Write submits an asynchronous write request on 'conn' with context 'ctx' and buffer 'buf'.
 // 'ctx' is a user-defined value passed unchanged.
-func (w *watcher) Write(ctx interface{}, conn net.Conn, buf []byte) error {
+func (w *watcher) Write(ctx any, conn net.Conn, buf []byte) error {
 	if len(buf) == 0 {
 		return ErrEmptyBuffer
 	}
@@ -333,7 +343,7 @@ func (w *watcher) Write(ctx interface{}, conn net.Conn, buf []byte) error {
 
 // WriteTimeout submits an asynchronous write request on 'conn' with context 'ctx' and buffer 'buf',
 // expecting to complete writing before 'deadline'. 'ctx' is a user-defined value passed unchanged.
-func (w *watcher) WriteTimeout(ctx interface{}, conn net.Conn, buf []byte, deadline time.Time) error {
+func (w *watcher) WriteTimeout(ctx any, conn net.Conn, buf []byte, deadline time.Time) error {
 	if len(buf) == 0 {
 		return ErrEmptyBuffer
 	}
@@ -347,21 +357,22 @@ func (w *watcher) Free(conn net.Conn) error {
 
 // aioCreate initiates an asynchronous IO operation with the given parameters.
 // It creates an aiocb structure and adds it to the pending queue, then notifies the watcher.
-func (w *watcher) aioCreate(ctx interface{}, op OpType, conn net.Conn, buf []byte, deadline time.Time, readfull bool) error {
+func (w *watcher) aioCreate(ctx any, op OpType, conn net.Conn, buf []byte, deadline time.Time, readfull bool) error {
 	select {
 	case <-w.die:
 		return ErrWatcherClosed
 	default:
-		// Fast path: get pointer using unsafe instead of reflect for performance
 		if conn == nil {
 			return ErrUnsupported
 		}
-		// Use reflect only for pointer extraction - interface must be pointer to net.Conn
-		rv := reflect.ValueOf(conn)
-		if rv.Kind() != reflect.Ptr {
+		// Get the data pointer from the interface value.
+		// An interface in Go is represented as two words: (type, data).
+		// We need the data pointer (second word) to uniquely identify the connection object.
+		iface := *(*[2]uintptr)(unsafe.Pointer(&conn))
+		ptr := iface[1] // data pointer
+		if ptr == 0 {
 			return ErrUnsupported
 		}
-		ptr := rv.Pointer()
 
 		cb := aiocbPool.Get().(*aiocb)
 		*cb = aiocb{op: op, ptr: ptr, size: 0, ctx: ctx, conn: conn, buffer: buf, deadline: deadline, readFull: readfull, idx: -1}
@@ -378,7 +389,7 @@ func (w *watcher) aioCreate(ctx interface{}, op OpType, conn net.Conn, buf []byt
 // tryRead attempts to read data on aiocb and notify the completion.
 // Returns true if the operation is completed; false if it is not completed and will retry later.
 func (w *watcher) tryRead(fd int, pcb *aiocb) bool {
-	// step 1. bind to proper buffer
+	// Step 1: bind to the appropriate buffer.
 	buf := pcb.buffer
 
 	useSwap := false
@@ -387,7 +398,7 @@ func (w *watcher) tryRead(fd int, pcb *aiocb) bool {
 	if buf == nil {
 		select {
 		case <-w.shouldSwap:
-			// A successful CAS operation triggers internal buffer swapping:
+			// A swap notification triggers internal buffer rotation:
 			//
 			// Initial State:
 			//
@@ -426,14 +437,14 @@ func (w *watcher) tryRead(fd int, pcb *aiocb) bool {
 		}
 	}
 
-	// step 2. read into buffer
+	// Step 2: read into the buffer.
 	for {
 		nr, er := rawRead(fd, buf[pcb.size:])
 		if er == syscall.EAGAIN {
 			return false
 		}
 
-		// On MacOS we can see EINTR here if the user
+		// On macOS we can see EINTR here if the user
 		// pressed ^Z.
 		if er == syscall.EINTR {
 			continue
@@ -453,8 +464,8 @@ func (w *watcher) tryRead(fd int, pcb *aiocb) bool {
 		break
 	}
 
-	// step 3.check read full operation
-	// 	the buffer of readfull operation is guaranteed from caller
+	// Step 3: handle read-full operations.
+	// 	The buffer for a read-full operation is guaranteed by the caller.
 	if pcb.readFull { // read full operation
 		if pcb.err != nil {
 			// the operation is completed due to error
@@ -468,7 +479,7 @@ func (w *watcher) tryRead(fd int, pcb *aiocb) bool {
 		return false
 	}
 
-	// step 4. non read-full operations
+	// Step 4: handle non read-full operations.
 	if useSwap { // IO completed with internal buffer
 		pcb.useSwap = true
 		pcb.buffer = buf[:pcb.size] // set len to pcb.size
@@ -495,13 +506,13 @@ func (w *watcher) tryWrite(fd int, pcb *aiocb) bool {
 				return false
 			}
 
-			// On MacOS/BSDs, if mbufs ran out, ENOBUFS will be returned
+			// On macOS/BSDs, if mbufs run out, ENOBUFS will be returned.
 			// https://man.freebsd.org/cgi/man.cgi?query=mbuf&sektion=9&format=html
 			if ew == syscall.ENOBUFS {
 				return false
 			}
 
-			// On MacOS we can see EINTR here if the user pressed ^Z.
+			// On macOS we can see EINTR here if the user pressed ^Z.
 			if ew == syscall.EINTR {
 				continue
 			}
@@ -573,7 +584,7 @@ func (w *watcher) deliver(pcb *aiocb) {
 
 // loop is the core event loop of the watcher, handling various events and tasks.
 func (w *watcher) loop() {
-	// Defer function to release all resources
+	// Defer cleanup of all resources.
 	defer func() {
 		for ident := range w.descs {
 			w.releaseConn(ident)
@@ -586,14 +597,17 @@ func (w *watcher) loop() {
 			// Swap w.pendingCreate with w.pendingProcessing
 			w.pendingMutex.Lock()
 			w.pendingCreate, w.pendingProcessing = w.pendingProcessing, w.pendingCreate
-			for i := 0; i < len(w.pendingCreate); i++ {
-				w.pendingCreate[i] = nil
-			}
+			clear(w.pendingCreate) // Clear to avoid memory leaks
 			w.pendingCreate = w.pendingCreate[:0]
 			w.pendingMutex.Unlock()
 
 			// handlePending is a synchronous operation to process all pending requests
 			w.handlePending(w.pendingProcessing)
+
+			// Clear pendingProcessing after handling to release pcb references
+			// This is important for GC - pcb.conn references must be released
+			clear(w.pendingProcessing)
+			w.pendingProcessing = w.pendingProcessing[:0]
 
 		case sig := <-w.chSignal: // Poller events
 			w.handleEvents(sig.events)
@@ -603,11 +617,12 @@ func (w *watcher) loop() {
 				return
 			}
 
-		case <-w.timer.C: //  a global timeout heap to handle all timeouts
+		case <-w.timer.C: // A global timeout heap to handle all timeouts.
 			now := time.Now()
 			for w.timeouts.Len() > 0 {
 				pcb := w.timeouts[0]
 				// Check if the aiocb has already been removed (idx == -1 means already delivered)
+				// NOTE(xtaci): It should not happen.
 				if pcb.idx == -1 {
 					heap.Pop(&w.timeouts)
 					continue
@@ -640,25 +655,29 @@ func (w *watcher) loop() {
 }
 
 // handleGC processes the garbage collection of net.Conn objects.
+// This function is called when a finalizer is triggered on a net.Conn object.
+// The finalizer adds the connection to w.gc slice and notifies this handler.
 func (w *watcher) handleGC() {
-	runtime.GC()
 	w.gcMutex.Lock()
-	if len(w.gc) > 0 {
-		for _, c := range w.gc {
-			ptr := reflect.ValueOf(c).Pointer()
-			if ident, ok := w.connIdents[ptr]; ok {
-				w.releaseConn(ident)
-			}
-			// make sure net.Conn is reachable before releaseConn
-			runtime.KeepAlive(c)
+	defer w.gcMutex.Unlock()
+
+	for _, c := range w.gc {
+		// Get data pointer from interface (second word)
+		iface := *(*[2]uintptr)(unsafe.Pointer(&c))
+		ptr := iface[1]
+		if ident, ok := w.connIdents[ptr]; ok {
+			w.releaseConn(ident)
 		}
-		w.gcClosed += uint32(len(w.gc))
-		w.gc = w.gc[:0]
+		// make sure net.Conn is reachable before releaseConn
+		runtime.KeepAlive(c)
 	}
-	w.gcMutex.Unlock()
+	w.gcClosed += uint32(len(w.gc))
+	// Clear the slice to release references
+	clear(w.gc)
+	w.gc = w.gc[:0]
 }
 
-// handlePending processes new requests, acting as a reception desk.
+// handlePending processes new requests, acting as a front desk.
 func (w *watcher) handlePending(pending []*aiocb) {
 PENDING:
 	for _, pcb := range pending {
@@ -677,13 +696,13 @@ PENDING:
 			// New file descriptor registration
 			dupfd, err := dupconn(pcb.conn)
 			if err != nil {
-				// unexpected situation, should notify caller if we cannot dup(2)
+				// Unexpected situation; notify the caller if dup(2) fails.
 				pcb.err = err
 				w.deliver(pcb)
 				continue
 			}
 
-			// let epoll or kqueue watch this fd before we close the original
+			// Register the fd with epoll/kqueue before closing the original.
 			if werr := w.pfd.Watch(dupfd); werr != nil {
 				// ensure we don't leak the duplicated fd
 				syscall.Close(dupfd)
@@ -692,7 +711,7 @@ PENDING:
 				continue
 			}
 
-			// we own the duplicated fd now, safe to close the original connection
+			// We own the duplicated fd now; it's safe to close the original connection.
 			pcb.conn.Close()
 			ident = dupfd
 
@@ -704,9 +723,9 @@ PENDING:
 			w.descs[ident] = desc
 			w.connIdents[pcb.ptr] = ident
 
-			// the 'conn' object is still useful for GC finalizer.
-			// note finalizer function cannot hold reference to net.Conn,
-			// if not it will never be GC-ed.
+			// The 'conn' object is still useful for the GC finalizer.
+			// The finalizer must not retain a reference to net.Conn;
+			// otherwise it will never be collected.
 			runtime.SetFinalizer(pcb.conn, func(c net.Conn) {
 				w.gcMutex.Lock()
 				w.gc = append(w.gc, c)
@@ -721,11 +740,11 @@ PENDING:
 			})
 		}
 
-		// as the file descriptor is registered, we can proceed to IO operations
+		// Since the file descriptor is registered, we can proceed with I/O operations.
 		switch pcb.op {
 		case OpRead:
-			// if there's no pending read requests
-			// we can try to read immediately
+			// If there are no pending read requests,
+			// we can try to read immediately.
 			if desc.readers.Len() == 0 {
 				if w.tryRead(ident, pcb) {
 					w.deliver(pcb)
@@ -734,7 +753,7 @@ PENDING:
 				}
 			}
 
-			// if the request is not fulfilled, we should queue it
+			// If the request is not fulfilled, queue it.
 			pcb.l = &desc.readers
 			pcb.elem = pcb.l.PushBack(pcb)
 
@@ -750,7 +769,7 @@ PENDING:
 			pcb.elem = pcb.l.PushBack(pcb)
 		}
 
-		// if the request has deadline set, we should push it to timeout heap
+		// If the request has a deadline set, push it to the timeout heap.
 		if !pcb.deadline.IsZero() {
 			heap.Push(&w.timeouts, pcb)
 			if w.timeouts.Len() > 0 && w.timeouts[0] == pcb {
@@ -762,12 +781,12 @@ PENDING:
 
 // handleEvents processes a batch of poller events and manages I/O operations for the associated file descriptors.
 // Each event contains information about file descriptor activity, and the handler ensures that read and write
-// operations are completed correctly even if the file descriptor has been re-opened after being closed.
+// operations are completed correctly even if the file descriptor has been reopened after being closed.
 //
-// Note: If a file descriptor is closed externally (e.g., by conn.Close()), and then re-opened with the same
-// handler number (fd), operations on the old fd can lead to errors. To handle this, the watcher duplicates the
+// Note: If a file descriptor is closed externally (e.g., by conn.Close()) and then reopened with the same
+// descriptor number (fd), operations on the old fd can lead to errors. To handle this, the watcher duplicates the
 // file descriptor from net.Conn, and operations are based on the unique identifier 'e.ident'. This prevents
-// misreading or miswriting on re-created file descriptors.
+// misreads or miswrites on reused file descriptors.
 //
 // The poller automatically removes closed file descriptors from the event poller (epoll(7), kqueue(2)), so we
 // need to handle these events correctly and ensure that all pending operations are processed.
@@ -813,7 +832,7 @@ func (w *watcher) handleEvents(events pollerEvents) {
 	}
 }
 
-// read gcFound & gcClosed
+// GetGC returns gcFound and gcClosed.
 func (w *watcher) GetGC() (found uint32, closed uint32) {
 	w.gcMutex.Lock()
 	defer w.gcMutex.Unlock()

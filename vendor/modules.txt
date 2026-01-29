@@ -80,8 +80,8 @@ github.com/subosito/gotenv
 # github.com/tjfoc/gmsm v1.4.1
 ## explicit; go 1.14
 github.com/tjfoc/gmsm/sm4
-# github.com/xtaci/gaio v1.2.29
-## explicit; go 1.13
+# github.com/xtaci/gaio v1.2.32
+## explicit; go 1.21
 github.com/xtaci/gaio
 # github.com/xtaci/qpp v1.1.21
 ## explicit; go 1.22.3
