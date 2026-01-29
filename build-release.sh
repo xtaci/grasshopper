@@ -71,3 +71,10 @@ tar -cf grasshopper-darwin-amd64-$VERSION.tar grasshopper_darwin_amd64
 ${COMPRESS} -f grasshopper-darwin-amd64-$VERSION.tar
 $sum grasshopper-darwin-amd64-$VERSION.tar.gz
 
+## Build for Windows
+env CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod=vendor -ldflags "$LDFLAGS" -gcflags "$GCFLAGS" -o grasshopper_windows_amd64.exe github.com/xtaci/grasshopper/cmd/grasshopper
+if $UPX; then upx -9 grasshopper_windows_amd64.exe;fi
+tar -cf grasshopper-windows-amd64-$VERSION.tar grasshopper_windows_amd64.exe
+${COMPRESS} -f grasshopper-windows-amd64-$VERSION.tar
+$sum grasshopper-windows-amd64-$VERSION.tar.gz
+
