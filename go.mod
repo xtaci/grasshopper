@@ -10,7 +10,7 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/templexxx/xorsimd v0.4.3
 	github.com/tjfoc/gmsm v1.4.1
-	github.com/xtaci/gaio v1.2.29
+	github.com/xtaci/gaio v1.2.32
 	github.com/xtaci/qpp v1.1.21
 	golang.org/x/crypto v0.46.0
 )
