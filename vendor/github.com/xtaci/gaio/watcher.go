@@ -27,12 +27,12 @@ import (
 	"container/list"
 	"io"
 	"net"
+	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
-	"unsafe"
 )
 
 var (
@@ -365,11 +365,9 @@ func (w *watcher) aioCreate(ctx any, op OpType, conn net.Conn, buf []byte, deadl
 		if conn == nil {
 			return ErrUnsupported
 		}
-		// Get the data pointer from the interface value.
-		// An interface in Go is represented as two words: (type, data).
-		// We need the data pointer (second word) to uniquely identify the connection object.
-		iface := *(*[2]uintptr)(unsafe.Pointer(&conn))
-		ptr := iface[1] // data pointer
+		// Get the data pointer from the interface value using reflect.
+		// This is safer and guaranteed by Go's compatibility promise.
+		ptr := reflect.ValueOf(conn).Pointer()
 		if ptr == 0 {
 			return ErrUnsupported
 		}
@@ -564,7 +562,7 @@ func (w *watcher) releaseConn(ident int) {
 		fdDescPool.Put(desc)
 
 		// Close the socket file descriptor duplicated from net.Conn
-		syscall.Close(ident)
+		closeFd(ident)
 	}
 }
 
@@ -662,9 +660,9 @@ func (w *watcher) handleGC() {
 	defer w.gcMutex.Unlock()
 
 	for _, c := range w.gc {
-		// Get data pointer from interface (second word)
-		iface := *(*[2]uintptr)(unsafe.Pointer(&c))
-		ptr := iface[1]
+		// Get data pointer from interface using reflect.
+		// This is safer and guaranteed by Go's compatibility promise.
+		ptr := reflect.ValueOf(c).Pointer()
 		if ident, ok := w.connIdents[ptr]; ok {
 			w.releaseConn(ident)
 		}
@@ -705,7 +703,7 @@ PENDING:
 			// Register the fd with epoll/kqueue before closing the original.
 			if werr := w.pfd.Watch(dupfd); werr != nil {
 				// ensure we don't leak the duplicated fd
-				syscall.Close(dupfd)
+				closeFd(dupfd)
 				pcb.err = werr
 				w.deliver(pcb)
 				continue
