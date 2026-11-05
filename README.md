@@ -1,5 +1,5 @@
 # 🦗 grasshopper
-[![GoDoc][1]][2] [![MIT licensed][3]][4] [![Created At][5]][6] [![Go Report Card][7]][8]
+[![GoDoc][1]][2] [![MIT licensed][3]][4] [![Created At][5]][6]
 
 [1]: https://godoc.org/github.com/xtaci/grasshopper?status.svg
 [2]: https://pkg.go.dev/github.com/xtaci/grasshopper
@@ -7,8 +7,6 @@
 [4]: LICENSE
 [5]: https://img.shields.io/github/created-at/xtaci/grasshopper
 [6]: https://img.shields.io/github/created-at/xtaci/grasshopper
-[7]: https://goreportcard.com/badge/github.com/xtaci/grasshopper
-[8]: https://goreportcard.com/report/github.com/xtaci/grasshopper
 [9]: https://img.shields.io/github/v/release/xtaci/grasshopper?color=orange
 [10]: https://github.com/xtaci/grasshopper/releases/latest
 

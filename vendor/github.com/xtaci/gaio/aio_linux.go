@@ -58,7 +58,7 @@ func openPoll() (*poller, error) {
 	r0, _, e0 := syscall.Syscall(syscall.SYS_EVENTFD2, 0, _EFD_NONBLOCK, 0)
 	if e0 != 0 {
 		syscall.Close(fd)
-		return nil, e0 // Fix: return actual syscall error instead of previous nil error
+		return nil, e0
 	}
 
 	if err := syscall.EpollCtl(fd, syscall.EPOLL_CTL_ADD, int(r0),
@@ -129,6 +129,7 @@ func (p *poller) Wait(chSignal chan Signal) {
 	const (
 		rSet = syscall.EPOLLIN | syscall.EPOLLRDHUP
 		wSet = syscall.EPOLLOUT
+		eSet = syscall.EPOLLERR | syscall.EPOLLHUP
 	)
 
 	// epoll event loop
@@ -149,7 +150,7 @@ func (p *poller) Wait(chSignal chan Signal) {
 			for i := 0; i < n; i++ {
 				ev := &events[i]
 				if int(ev.Fd) == p.efd {
-					syscall.Read(p.efd, p.efdbuf) // simply consume
+					syscall.Read(p.efd, p.efdbuf) // Drain the eventfd counter.
 					if cpuid := atomic.LoadInt32(&p.cpuid); cpuid != -1 {
 						setAffinity(cpuid)
 						atomic.StoreInt32(&p.cpuid, -1)
@@ -157,11 +158,15 @@ func (p *poller) Wait(chSignal chan Signal) {
 				} else {
 					e := event{ident: int(ev.Fd)}
 
-					// EPOLLRDHUP (since Linux 2.6.17)
-					// Stream socket peer closed connection, or shut down writing
-					// half of connection.  (This flag is especially useful for writ-
-					// ing simple code to detect peer shutdown when using Edge Trig-
-					// gered monitoring.)
+					// EPOLLERR/EPOLLHUP should wake both read and write waiters.
+					if ev.Events&eSet != 0 {
+						e.ev |= EV_READ | EV_WRITE
+					}
+
+					// EPOLLRDHUP (available since Linux 2.6.17) indicates that a
+					// stream socket's peer has closed the connection or shut down
+					// its writing half. It is especially useful with edge-triggered
+					// polling for detecting peer shutdown.
 					if ev.Events&rSet != 0 {
 						e.ev |= EV_READ
 					}
@@ -193,8 +198,10 @@ func (p *poller) Wait(chSignal chan Signal) {
 	}
 }
 
-// rawRead performs non-blocking reads to avoid context switches.
-// NOTE: r0 is set to -1 on error, which becomes MaxUint when converted to int on 64-bit
+// rawRead issues a non-blocking read directly through the system call interface.
+// The file descriptor must have O_NONBLOCK set. Using RawSyscall avoids the
+// normal syscall path; on error, RawSyscall returns -1 in r0, represented as
+// MaxUint when converted to int on 64-bit systems.
 func rawRead(fd int, p []byte) (n int, err error) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
@@ -209,8 +216,10 @@ func rawRead(fd int, p []byte) (n int, err error) {
 	return int(r0), nil
 }
 
-// rawWrite performs non-blocking writes to avoid context switches.
-// NOTE: r0 is set to -1 on error, which becomes MaxUint when converted to int on 64-bit
+// rawWrite issues a non-blocking write directly through the system call interface.
+// The file descriptor must have O_NONBLOCK set. Using RawSyscall avoids the
+// normal syscall path; on error, RawSyscall returns -1 in r0, represented as
+// MaxUint when converted to int on 64-bit systems.
 func rawWrite(fd int, p []byte) (n int, err error) {
 	var _p0 unsafe.Pointer
 	if len(p) > 0 {
