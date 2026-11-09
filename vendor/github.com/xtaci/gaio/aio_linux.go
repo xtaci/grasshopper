@@ -86,13 +86,31 @@ func (p *poller) Close() error {
 	p.dieOnce.Do(func() {
 		close(p.die)
 	})
-	return p.wakeup()
+
+	// Wait may observe die and exit before the wakeup is sent, releasing the
+	// wakeup descriptor on its way out. A wakeup that finds the poller already
+	// closed is then the requested outcome, not a failure.
+	err := p.wakeup()
+	if err == ErrPollerClosed {
+		return nil
+	}
+	return err
 }
 
 func (p *poller) Watch(fd int) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return syscall.EpollCtl(p.pfd, syscall.EPOLL_CTL_ADD, fd, &syscall.EpollEvent{Fd: int32(fd), Events: syscall.EPOLLRDHUP | syscall.EPOLLIN | syscall.EPOLLOUT | _EPOLLET})
+}
+
+// Unwatch removes a socket from the epoll set. epoll registrations belong to
+// the open file description, so they must be removed explicitly before the
+// socket is handed to another owner; closing one descriptor is not enough
+// while other descriptors still refer to the same socket.
+func (p *poller) Unwatch(fd int) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return syscall.EpollCtl(p.pfd, syscall.EPOLL_CTL_DEL, fd, nil)
 }
 
 // wakeup interrupts epoll_wait.

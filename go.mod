@@ -1,15 +1,15 @@
 module github.com/xtaci/grasshopper
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
 	github.com/tjfoc/gmsm v1.4.1
-	github.com/xtaci/gaio v1.2.35
-	github.com/xtaci/qpp v1.1.21
-	golang.org/x/crypto v0.52.0
+	github.com/xtaci/gaio v1.2.37
+	github.com/xtaci/qpp v1.1.25
+	golang.org/x/crypto v0.58.0
 )
 
 require (
@@ -29,8 +29,8 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

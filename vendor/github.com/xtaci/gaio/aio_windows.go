@@ -49,6 +49,11 @@ var (
 	procGetCurrentProcessId = modkernel32.NewProc("GetCurrentProcessId")
 )
 
+var (
+	modntdll                 = syscall.NewLazyDLL("ntdll.dll")
+	procNtSetInformationFile = modntdll.NewProc("NtSetInformationFile")
+)
+
 const (
 	// WSAPoll events (same as POSIX poll)
 	_POLLIN     = 0x0100 // Note: Windows uses different values!
@@ -327,7 +332,15 @@ func (p *poller) Close() error {
 	p.dieOnce.Do(func() {
 		close(p.die)
 	})
-	return p.wakeup()
+
+	// Wait may observe die and exit before the wakeup is sent, releasing the
+	// wakeup descriptor on its way out. A wakeup that finds the poller already
+	// closed is then the requested outcome, not a failure.
+	err := p.wakeup()
+	if err == ErrPollerClosed {
+		return nil
+	}
+	return err
 }
 
 // Watch adds a socket to the poll set for read and write readiness.
@@ -354,6 +367,59 @@ func (p *poller) Watch(fd int) error {
 	// Wake up the poller to pick up the new socket
 	p.wakeup()
 
+	return nil
+}
+
+// fileCompletionInformation mirrors FILE_COMPLETION_INFORMATION. A zero Port
+// removes the completion port association.
+type fileCompletionInformation struct {
+	port uintptr
+	key  uintptr
+}
+
+// ioStatusBlock mirrors IO_STATUS_BLOCK.
+type ioStatusBlock struct {
+	status      uintptr
+	information uintptr
+}
+
+// fileReplaceCompletionInformation is the FILE_INFORMATION_CLASS that replaces
+// the completion port of a file object.
+const fileReplaceCompletionInformation = 61
+
+// prepareDetach disassociates the socket from the Go runtime's I/O completion
+// port so that net.FileConn can bind a new handle to it.
+//
+// The completion port is bound to the socket object, not to a handle, so the
+// duplicate watched by gaio still carries the association made for the
+// original net.Conn. CreateIoCompletionPort fails with ERROR_INVALID_PARAMETER
+// for an object that is already associated, which would make net.FileConn
+// fail. This does what the Go runtime does in os.File.Fd.
+func prepareDetach(fd int) error {
+	var iosb ioStatusBlock
+	info := fileCompletionInformation{}
+	status, _, _ := procNtSetInformationFile.Call(
+		uintptr(fd),
+		uintptr(unsafe.Pointer(&iosb)),
+		uintptr(unsafe.Pointer(&info)),
+		unsafe.Sizeof(info),
+		fileReplaceCompletionInformation,
+	)
+	if status != 0 {
+		return fmt.Errorf("NtSetInformationFile: NTSTATUS 0x%x", status)
+	}
+	return nil
+}
+
+// Unwatch removes a socket from the poll set.
+//
+// The watcher calls it before closing or detaching a socket. Removal must not
+// wait for WSAPoll to report POLLNVAL: Windows reuses socket handle numbers
+// aggressively, so a new connection can obtain the same number while a stale
+// POLLNVAL for the old one is still in flight, and removing the entry at that
+// point would drop the new connection from the poll set.
+func (p *poller) Unwatch(fd int) error {
+	p.unwatch(uintptr(fd))
 	return nil
 }
 
@@ -504,9 +570,11 @@ func (p *poller) Wait(chSignal chan Signal) {
 					continue
 				}
 
-				// Remove invalid sockets from poll set
+				// POLLNVAL means the socket was closed after the snapshot was
+				// taken. The watcher already removed it with Unwatch, and the
+				// handle number may belong to a new connection by now, so the
+				// stale report is ignored rather than acted on.
 				if pfd.revents&_POLLNVAL != 0 {
-					p.unwatch(pfd.fd)
 					continue
 				}
 

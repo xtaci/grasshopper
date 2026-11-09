@@ -37,9 +37,6 @@ type poller struct {
 	mu    sync.Mutex // mutex to protect fd closure
 	fd    int        // kqueue fd
 
-	// Queue of fds to register with the poller.
-	watchQueue      []int
-	watchQueueMutex sync.Mutex
 	// shutdown signal
 	die     chan struct{}
 	dieOnce sync.Once
@@ -75,15 +72,68 @@ func (p *poller) Close() error {
 	p.dieOnce.Do(func() {
 		close(p.die)
 	})
-	return p.wakeup()
+
+	// Wait may observe die and exit before the wakeup is sent, releasing the
+	// wakeup descriptor on its way out. A wakeup that finds the poller already
+	// closed is then the requested outcome, not a failure.
+	err := p.wakeup()
+	if err == ErrPollerClosed {
+		return nil
+	}
+	return err
 }
 
-// Watch queues a socket for read/write monitoring and wakes the poller.
+// Watch registers a socket's read and write filters with the kqueue.
+//
+// The change is applied immediately instead of being queued for
+// the poller goroutine. A queued EV_ADD runs on the poller goroutine while the
+// watcher may already be closing the descriptor, and it can also land on an
+// unrelated file that reused the descriptor number. On macOS, close(2) racing
+// a kevent(2) that references the same descriptor can block forever in the
+// kernel, leaving the process unkillable. kevent is safe to call concurrently
+// with a blocked kevent on the same kqueue, and a newly ready filter wakes it.
 func (p *poller) Watch(fd int) error {
-	p.watchQueueMutex.Lock()
-	p.watchQueue = append(p.watchQueue, fd)
-	p.watchQueueMutex.Unlock()
-	return p.wakeup()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.fd == -1 {
+		return ErrPollerClosed
+	}
+
+	changes := []syscall.Kevent_t{
+		{Ident: uint64(fd), Flags: syscall.EV_ADD | syscall.EV_CLEAR, Filter: syscall.EVFILT_READ},
+		{Ident: uint64(fd), Flags: syscall.EV_ADD | syscall.EV_CLEAR, Filter: syscall.EVFILT_WRITE},
+	}
+	_, err := syscall.Kevent(p.fd, changes, nil, nil)
+	return err
+}
+
+// Unwatch removes a socket's read and write filters from the kqueue.
+//
+// Like Watch, the change is applied immediately: the caller releases the
+// socket right after Unwatch returns, and a deferred EV_DELETE could hit an
+// unrelated socket that reused the descriptor number. kevent is safe to call
+// concurrently with a blocked kevent on the same kqueue. ENOENT means the
+// filter is already gone and is ignored.
+func (p *poller) Unwatch(fd int) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.fd == -1 {
+		return ErrPollerClosed
+	}
+
+	// Delete each filter in its own call so that ENOENT for one filter does
+	// not prevent the other from being removed.
+	changes := []syscall.Kevent_t{
+		{Ident: uint64(fd), Flags: syscall.EV_DELETE, Filter: syscall.EVFILT_READ},
+		{Ident: uint64(fd), Flags: syscall.EV_DELETE, Filter: syscall.EVFILT_WRITE},
+	}
+	for i := range changes {
+		_, err := syscall.Kevent(p.fd, changes[i:i+1], nil, nil)
+		if err != nil && err != syscall.ENOENT {
+			return err
+		}
+	}
+	return nil
 }
 
 // wakeup interrupts kevent.
@@ -118,38 +168,26 @@ func (p *poller) Wait(chSignal chan Signal) {
 		p.mu.Unlock()
 	}()
 
-	// kqueue event loop - pre-allocate the changes slice
-	changes := make([]syscall.Kevent_t, 0, 256)
+	// kqueue event loop
 	for {
 		select {
 		case <-p.die:
 			return
 		default:
-			p.watchQueueMutex.Lock()
-			for _, fd := range p.watchQueue {
-				changes = append(changes,
-					syscall.Kevent_t{Ident: uint64(fd), Flags: syscall.EV_ADD | syscall.EV_CLEAR, Filter: syscall.EVFILT_READ},
-					syscall.Kevent_t{Ident: uint64(fd), Flags: syscall.EV_ADD | syscall.EV_CLEAR, Filter: syscall.EVFILT_WRITE},
-				)
-			}
-			p.watchQueue = p.watchQueue[:0]
-			p.watchQueueMutex.Unlock()
-
 			// Apply any pending CPU-affinity request before polling.
 			if cpuid := atomic.LoadInt32(&p.cpuid); cpuid != -1 {
 				setAffinity(cpuid)
 				atomic.StoreInt32(&p.cpuid, -1)
 			}
 
-			// Register queued sockets and wait for readiness events.
-			n, err := syscall.Kevent(p.fd, changes, events, nil)
+			// Wait for readiness events.
+			n, err := syscall.Kevent(p.fd, nil, events, nil)
 			if err == syscall.EINTR {
 				continue
 			}
 			if err != nil {
 				return
 			}
-			changes = changes[:0]
 
 			// Translate kqueue events into platform-independent readiness flags.
 			for i := 0; i < n; i++ {
